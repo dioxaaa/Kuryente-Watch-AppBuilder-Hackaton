@@ -51,7 +51,10 @@ export function AssistantWidget(props) {
           body: JSON.stringify({ question, history, context: buildAssistantContext(props) }),
         })
         const data = await res.json().catch(() => ({}))
-        if (!res.ok) throw new Error(data.error || 'Something went wrong. Please try again.')
+        if (!res.ok) {
+          if (!data.error && res.status >= 500) throw new TypeError('offline') // Vite's proxy answers 5xx when nothing is listening
+          throw new Error(data.error || 'Something went wrong. Please try again.')
+        }
         reply = data.reply
       }
 

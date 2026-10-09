@@ -46,12 +46,12 @@ export function DeviceChart({ device, alertId, heading = false, compact = false 
         if (!name) {
           const devices = await api.get('/devices')
           name = devices[0]?.name
-          if (!name) throw new Error('No device readings yet. Run npm run seed to load demo data.')
+          if (!name) throw new Error('No device readings yet. Once a device sends readings, its chart will appear here.')
         }
         const data = await api.get(`/devices/${encodeURIComponent(name)}/chart${alertId ? `?alertId=${encodeURIComponent(alertId)}` : ''}`)
         if (!cancelled) setState({ loading: false, error: '', data })
       } catch (err) {
-        if (!cancelled) setState({ loading: false, error: err.message, data: null })
+        if (!cancelled) setState({ loading: false, error: /baseline/i.test(err.message) ? 'This device is still learning what is normal for it. Its chart appears after the first training.' : err.message, data: null })
       }
     })()
     return () => { cancelled = true }

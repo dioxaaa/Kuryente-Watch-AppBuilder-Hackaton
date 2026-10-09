@@ -17,7 +17,7 @@ export function usageSummary(readings) {
 }
 
 // Sent to /api/assistant. Numbers only: the server writes the prompt, so the browser can never inject instructions.
-export function buildAssistantContext({ readings, appliances, alerts, rate, monthKwh }) {
+export function buildAssistantContext({ readings = [], appliances = [], alerts = [], rate, monthKwh } = {}) {
   const latest = readings[readings.length - 1]
   const previous = readings[readings.length - 2]
   return {
@@ -42,7 +42,7 @@ export function buildAssistantContext({ readings, appliances, alerts, rate, mont
 
 // Plain facts for the card. Always available, even when the local AI is off.
 // Each is { id, kind, text }. Only things that can be worked out from the data are listed.
-export function billFacts({ readings, appliances, alerts, rate }) {
+export function billFacts({ readings = [], appliances = [], alerts = [], rate } = {}) {
   const facts = []
   const usage = usageSummary(readings)
   const meterMonthKwh = usage ? usage.recentDailyKwh * 30 : null

@@ -4,7 +4,7 @@ import { duration } from './alerts.js'
 import { formatPeso } from './energy-utils.js'
 
 const norm = value => String(value ?? '').trim().toLowerCase()
-const watts = n => `${Math.round(n)} W`
+const watts = n => (Number.isFinite(Number(n)) && Number(n) > 0 ? `${Math.round(Number(n))} W` : 'an unknown level')
 
 export const kwhText = n => `${n < 1 ? n.toFixed(2) : n.toFixed(1)} kWh`
 // formatPeso rounds to whole pesos, which would turn ₱1.20 into ₱1. Small amounts keep their centavos.
