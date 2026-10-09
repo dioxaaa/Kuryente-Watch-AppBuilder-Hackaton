@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
-import { api, isLocalMode } from './api'
+import { api, isLocalMode, onModeChange } from './api'
 import { AppHeader } from './components/app-header'
 import { AppSidebar } from './components/app-sidebar'
 import { ErrorMessage } from './components/error-message'
@@ -105,6 +105,9 @@ export default function App() {
       if (!initial) reportFailure(error)
     }
   }, [reportFailure])
+
+  // Reload from the right store when the app switches between the KuryenteWatch server and on-device storage.
+  useEffect(() => onModeChange(() => loadWorkspace()), [loadWorkspace])
 
   useEffect(() => {
     loadWorkspace({ initial: true })

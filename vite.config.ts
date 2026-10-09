@@ -2,8 +2,24 @@ import { defineConfig } from 'vite'
 import react from '@vitejs/plugin-react'
 import { VitePWA } from 'vite-plugin-pwa'
 import { fileURLToPath } from 'node:url'
+import { createReadStream, readFileSync } from 'node:fs'
 
 const web = (file: string) => fileURLToPath(new URL(`./src/web/${file}`, import.meta.url))
+
+// English OCR data for on-device meter photo reading (src/utils/offline-ocr.js), served from the app itself so it works offline.
+const tessdata = fileURLToPath(new URL('./node_modules/@tesseract.js-data/eng/4.0.0_best_int/eng.traineddata.gz', import.meta.url))
+const tesseractLangData = () => ({
+  name: 'tesseract-lang-data',
+  configureServer(server) {
+    server.middlewares.use(`${server.config.base}tessdata/eng.traineddata.gz`, (_req, res) => {
+      res.setHeader('Content-Type', 'application/octet-stream')
+      createReadStream(tessdata).pipe(res)
+    })
+  },
+  generateBundle() {
+    this.emitFile({ type: 'asset', fileName: 'tessdata/eng.traineddata.gz', source: readFileSync(tessdata) })
+  },
+})
 
 export default defineConfig(({ mode }) => ({
   // `--mode web` builds the public website: the API and SQLite run in the visitor's browser (see src/web).
@@ -35,6 +51,7 @@ export default defineConfig(({ mode }) => ({
   },
   plugins: [
     react(),
+    tesseractLangData(),
     VitePWA({
       registerType: 'autoUpdate',
       manifest: {
@@ -49,7 +66,9 @@ export default defineConfig(({ mode }) => ({
         icons: [{ src: '/icon.svg', sizes: 'any', type: 'image/svg+xml', purpose: 'any maskable' }],
       },
       workbox: {
-        globPatterns: [mode === 'web' ? '**/*.{js,css,html,svg,png,ico,woff2,webmanifest,wasm}' : '**/*.{js,css,html,svg,png,ico,woff2,webmanifest}'],
+        globPatterns: [mode === 'web' ? '**/*.{js,css,html,svg,png,ico,woff2,webmanifest,wasm,gz}' : '**/*.{js,css,html,svg,png,ico,woff2,webmanifest,gz}'],
+        // The OCR engine (~4 MB) and language data (~3 MB) are precached so meter photos can be read offline.
+        maximumFileSizeToCacheInBytes: 6 * 1024 * 1024,
         navigateFallback: '/index.html',
         navigateFallbackDenylist: [/^\/api\//],
       },
