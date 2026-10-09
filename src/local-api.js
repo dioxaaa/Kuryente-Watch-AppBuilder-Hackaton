@@ -145,6 +145,7 @@ export async function localApi(path, { method = 'GET', body } = {}) {
       return { appliance }
     }
   }
+  if (route === '/appliances/read-label' && method === 'POST') return readLabel(body)
   const applianceMatch = route.match(/^\/appliances\/([^/]+)$/)
   if (applianceMatch) {
     const id = decodeURIComponent(applianceMatch[1])
@@ -199,6 +200,15 @@ export async function readPhoto(body = {}) {
   const { readMeterPhotoOnDevice } = await import('./utils/offline-ocr.js')
   try {
     return await readMeterPhotoOnDevice(body.image)
+  } catch (error) {
+    throw new LocalApiError(error.message, error.status || 422)
+  }
+}
+
+export async function readLabel(body = {}) {
+  const { readLabelPhotoOnDevice } = await import('./utils/offline-ocr.js')
+  try {
+    return await readLabelPhotoOnDevice(body.image)
   } catch (error) {
     throw new LocalApiError(error.message, error.status || 422)
   }
