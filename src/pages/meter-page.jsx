@@ -2,6 +2,7 @@ import { useEffect, useRef, useState } from 'react'
 import { AlertCircle, Camera, Check, ImagePlus, Info, ScanLine, Trash2, Upload, Zap } from 'lucide-react'
 import { PageTitle } from '../components/page-title'
 import { formatDate } from '../utils/energy-utils'
+import { checkReading, neighborsAt } from '../utils/meter-check'
 
 export function MeterPage({ readings, rate, onSave, onToast }) {
   const [photo, setPhoto] = useState('')
@@ -12,12 +13,14 @@ export function MeterPage({ readings, rate, onSave, onToast }) {
     return now.toISOString().slice(0, 16)
   })
   const [error, setError] = useState('')
+  const [reset, setReset] = useState(false)
   const inputRef = useRef(null)
   useEffect(() => () => {
     if (photo) URL.revokeObjectURL(photo)
   }, [photo])
-  const previous = readings[readings.length - 1]
-  const delta = value !== '' && previous ? Number(value) - previous.kwh : null
+  // compare with the reading taken just before the chosen date, not just the newest one
+  const previous = (recordedAt && !Number.isNaN(new Date(recordedAt).getTime()) ? neighborsAt(readings, recordedAt).before : null) ?? readings[readings.length - 1]
+  const delta = value !== '' && previous && !reset ? Number(value) - previous.kwh : null
   function selectImage(file) {
     if (!file) return
     if (!file.type.startsWith('image/')) {
@@ -45,16 +48,18 @@ export function MeterPage({ readings, rate, onSave, onToast }) {
       setError('Enter a valid meter reading greater than zero.')
       return
     }
-    if (previous && Number(value) < previous.kwh) {
-      setError(`This is lower than your previous reading (${previous.kwh.toLocaleString()} kWh). Check the value and try again.`)
-      return
-    }
     if (!recordedAt || Number.isNaN(new Date(recordedAt).getTime())) {
       setError('Choose a valid date and time for this reading.')
       return
     }
-    if (!(await onSave({ kwh: Number(value), date: new Date(recordedAt), source: 'Manual entry' }))) return // the app already showed why it could not save
+    const problem = checkReading(readings, { kwh: Number(value), date: recordedAt, reset })
+    if (problem) {
+      setError(problem)
+      return
+    }
+    if (!(await onSave({ kwh: Number(value), date: new Date(recordedAt), source: 'Manual entry', reset }))) return // the app already showed why it could not save
     setValue('')
+    setReset(false)
     removePhoto()
     setError('')
     onToast('Reading saved.')
@@ -79,10 +84,11 @@ export function MeterPage({ readings, rate, onSave, onToast }) {
               <div className="field-group"><label htmlFor="meter-reading">Meter reading <span className="required">*</span></label><div className="input-with-unit"><input id="meter-reading" type="number" inputMode="decimal" min="0.01" step="0.01" placeholder="e.g. 3,012.00" value={value} onChange={event => { setValue(event.target.value); setError('') }} /><span>kWh</span></div></div>
               <div className="field-group"><label htmlFor="reading-date">Date and time <span className="required">*</span></label><input id="reading-date" type="datetime-local" value={recordedAt} onChange={event => setRecordedAt(event.target.value)} /></div>
             </div>
+            <label className="reset-meter-option"><input type="checkbox" checked={reset} onChange={event => { setReset(event.target.checked); setError('') }} /><span><strong>New or replaced meter</strong><small>Tick this if your meter was changed and counts from a new starting number. Usage is not compared with older readings.</small></span></label>
             {error && <p className="form-error" role="alert"><AlertCircle size={15} />{error}</p>}
-            {delta !== null && delta < 0 && !error && <p className="form-error"><AlertCircle size={15} />This is below your previous reading. Check the value before confirming.</p>}
+            {delta !== null && delta < 0 && !error && <p className="form-error"><AlertCircle size={15} />This is below your earlier reading. Check the value before confirming.</p>}
             <div className="comparison-box">
-              {previous ? <><span className="comparison-icon"><Zap size={17} /></span><span className="comparison-copy"><strong>Consumption preview</strong><small>Previous reading: {previous.kwh.toLocaleString()} kWh · {formatDate(previous.date)}</small></span><span className="comparison-value">{delta === null ? '—' : delta < 0 ? 'Check value' : `${delta.toFixed(2)} kWh`}<small>{delta !== null && delta >= 0 ? `≈ ₱${(delta * rate).toFixed(2)} estimated` : 'Enter a reading above'}</small></span></> :
+              {previous ? <><span className="comparison-icon"><Zap size={17} /></span><span className="comparison-copy"><strong>Consumption preview</strong><small>{reset ? 'New meter: not compared with older readings' : `Earlier reading: ${previous.kwh.toLocaleString()} kWh · ${formatDate(previous.date)}`}</small></span><span className="comparison-value">{delta === null ? '—' : delta < 0 ? 'Check value' : `${delta.toFixed(2)} kWh`}<small>{delta !== null && delta >= 0 ? `≈ ₱${(delta * rate).toFixed(2)} estimated` : 'Enter a reading above'}</small></span></> :
                 <><span className="comparison-icon"><Info size={17} /></span><span className="comparison-copy"><strong>First reading</strong><small>Another reading will be needed to calculate household consumption.</small></span></>}
             </div>
             <div className="form-actions"><span><span className="required">*</span> Required</span><button type="submit" className="button button-primary"><Check size={16} /> Confirm reading</button></div>

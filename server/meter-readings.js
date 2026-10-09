@@ -9,5 +9,5 @@ export function cleanMeterReading(raw) {
   if (Number.isNaN(when.getTime())) throw httpError(400, 'Choose a valid date and time for this reading.')
   const id = typeof r.id === 'string' && r.id.length <= 80 ? r.id : undefined
   const source = r.source === undefined ? 'Manual entry' : String(r.source).slice(0, 30)
-  return { id, kwh, date: when.toISOString(), source }
+  return { id, kwh, date: when.toISOString(), source, reset: r.reset === true }
 }

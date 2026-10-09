@@ -5,6 +5,7 @@ import { trainDevice, scanDevice } from './service.js'
 import { askAssistant } from './assistant.js'
 import { cleanAppliance } from './appliances.js'
 import { cleanMeterReading } from './meter-readings.js'
+import { checkReading } from '../src/utils/meter-check.js'
 export function createApp(db) {
   const app = express()
   app.use(express.json({ limit: '50mb' })) // large CSV-sized imports
@@ -54,7 +55,12 @@ export function createApp(db) {
 
   // household meter readings
   app.get('/api/meter-readings', wrap(() => repo.listMeterReadings(db)))
-  app.post('/api/meter-readings', wrap(req => repo.addMeterReading(db, cleanMeterReading(req.body))))
+  app.post('/api/meter-readings', wrap(req => {
+    const reading = cleanMeterReading(req.body)
+    const problem = checkReading(repo.listMeterReadings(db), reading)
+    if (problem) throw new Error(problem)
+    return repo.addMeterReading(db, reading)
+  }))
   app.delete('/api/meter-readings/:id', wrap(req => ({ deleted: repo.deleteMeterReading(db, req.params.id) })))
 
   // settings

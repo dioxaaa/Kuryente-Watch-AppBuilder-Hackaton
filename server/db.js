@@ -52,7 +52,8 @@ CREATE TABLE IF NOT EXISTS meter_readings (
   kwh         REAL NOT NULL,         -- value shown on the household meter
   recorded_at TEXT NOT NULL,         -- ISO string, when the meter was read
   source      TEXT NOT NULL DEFAULT 'Manual entry',
-  created_at  TEXT NOT NULL
+  created_at  TEXT NOT NULL,
+  is_reset    INTEGER NOT NULL DEFAULT 0 -- 1 = new or replaced meter, counting starts over
 );
 CREATE INDEX IF NOT EXISTS idx_meter_readings_time ON meter_readings(recorded_at);
 CREATE TABLE IF NOT EXISTS settings (
@@ -68,5 +69,7 @@ export function openDb(file = process.env.KURYENTE_DB || 'data/kuryentewatch.db'
   db.pragma('journal_mode = WAL')
   db.pragma('foreign_keys = ON')
   db.exec(SCHEMA)
+  // Databases created before the replaced-meter option do not have this column yet.
+  if (!db.prepare('PRAGMA table_info(meter_readings)').all().some(c => c.name === 'is_reset')) db.exec('ALTER TABLE meter_readings ADD COLUMN is_reset INTEGER NOT NULL DEFAULT 0')
   return db
 }
