@@ -124,7 +124,7 @@ export function MeterPage({ readings, rate, onSave, onToast }) {
   return (
     <>
       <PageTitle eyebrow="HOUSEHOLD MONITORING" title="Add a meter reading" description="Record the cumulative kWh value shown on your electricity meter." />
-      <div className="demo-banner"><Info size={16} /><span><strong>Review before saving.</strong> Photos are processed by the optional local Ollama vision model; you can always enter the value manually.</span></div>
+      <div className="demo-banner"><Info size={16} /><span><strong>Review before saving.</strong> Photos are read by the local Ollama vision model when the KuryenteWatch server is running, or by on-device OCR when it is not; you can always enter the value manually.</span></div>
       <div className="meter-layout">
         <section className="panel meter-form-panel">
           <div className="panel-heading"><div><h2>New meter reading</h2><p>Enter the cumulative display value</p></div><span className="step-pill"><span>01</span> Reading details</span></div>
@@ -147,7 +147,7 @@ export function MeterPage({ readings, rate, onSave, onToast }) {
               </button>
             )}
             <input ref={inputRef} className="visually-hidden" type="file" accept="image/*" capture="environment" onChange={event => { selectImage(event.target.files?.[0]); event.target.value = '' }} aria-label="Choose meter photo" />
-            {photo && <button className="button button-secondary button-small" type="button" onClick={readPhoto} disabled={readingPhoto}><ScanLine size={15} /> {readingPhoto ? 'Reading photo…' : 'Read display with local AI'}</button>}
+            {photo && <button className="button button-secondary button-small" type="button" onClick={readPhoto} disabled={readingPhoto}><ScanLine size={15} /> {readingPhoto ? 'Reading photo…' : 'Read display from photo'}</button>}
             {ocr && <p className="photo-note"><Check size={14} /> Suggested {ocr.kwh.toLocaleString()} kWh by {ocr.model}. Verify the value against your photo.</p>}
             {ocrError && <p className="form-error" role="alert">{ocrError}</p>}
             <div className="field-group">
@@ -171,7 +171,7 @@ export function MeterPage({ readings, rate, onSave, onToast }) {
           </form>
         </section>
         <aside className="meter-side-column">
-          <section className="panel reading-guide"><span className="guide-icon"><Camera size={18} /></span><h3>For an accurate reading</h3><ul><li>Enter the full cumulative kWh value.</li><li>Include digits after the decimal when shown.</li><li>Use the time you checked the meter.</li><li>Check the value before saving.</li></ul><span className="guide-disclaimer"><Info size={14} /> Images are only sent to the configured local Ollama server.</span></section>
+          <section className="panel reading-guide"><span className="guide-icon"><Camera size={18} /></span><h3>For an accurate reading</h3><ul><li>Enter the full cumulative kWh value.</li><li>Include digits after the decimal when shown.</li><li>Use the time you checked the meter.</li><li>Check the value before saving.</li></ul><span className="guide-disclaimer"><Info size={14} /> Photos are read on this device or by your local KuryenteWatch server, never a cloud service.</span></section>
           <section className="panel last-reading-card"><span className="eyebrow">PREVIOUS READING</span><strong>{previous ? previous.kwh.toLocaleString() : '—'} <small>kWh</small></strong><span>{previous ? formatDate(previous.date) : 'No previous reading'}</span></section>
         </aside>
       </div>

@@ -1,7 +1,10 @@
 import { useEffect, useRef, useState } from 'react'
 import { Bot, CircleAlert, LoaderCircle, MessageCircle, RefreshCw, Send, Sparkles, UserRound } from 'lucide-react'
 import { api } from '../api'
+import { BUILT_IN_MODEL } from '../local-api'
 import { PageTitle } from '../components/page-title'
+
+const modelLabel = name => (name === BUILT_IN_MODEL ? 'On-device assistant' : name)
 
 const suggestions = [
   'How much energy did my household use?',
@@ -13,6 +16,7 @@ export function AssistantPage() {
   const [models, setModels] = useState([])
   const [model, setModel] = useState('')
   const [available, setAvailable] = useState(false)
+  const [onDevice, setOnDevice] = useState(false)
   const [checking, setChecking] = useState(true)
   const [statusError, setStatusError] = useState('')
   const [messages, setMessages] = useState([])
@@ -28,10 +32,12 @@ export function AssistantPage() {
       const status = await api('/assistant/status', { signal })
       setModels(status.models)
       setAvailable(status.available)
+      setOnDevice(Boolean(status.local) || status.models.includes(BUILT_IN_MODEL))
       setStatusError(status.error)
       setModel(current => status.models.includes(current) ? current : (status.models[0] ?? ''))
     } catch (requestError) {
       setAvailable(false)
+      setOnDevice(false)
       setModels([])
       setStatusError(requestError.message || 'Could not check local Ollama status.')
     } finally {
@@ -93,14 +99,14 @@ export function AssistantPage() {
           <div className="assistant-topline">
             <div className="assistant-model-state">
               <span className={`assistant-state-dot ${available ? 'assistant-state-ready' : ''}`} />
-              <span>{checking ? 'Checking Ollama…' : available ? 'Ollama connected' : 'Ollama unavailable'}</span>
-              {available && <span className="badge badge-success">LOCAL</span>}
+              <span>{checking ? 'Checking assistant…' : onDevice ? 'On-device assistant ready' : available ? 'Ollama connected' : 'Ollama unavailable'}</span>
+              {available && <span className="badge badge-success">{onDevice ? 'ON DEVICE' : 'LOCAL'}</span>}
             </div>
             <label className="assistant-model-picker">
               <span>Model</span>
-              <select aria-label="Ollama model" value={model} onChange={event => setModel(event.target.value)} disabled={!available || busy}>
+              <select aria-label="Assistant model" value={model} onChange={event => setModel(event.target.value)} disabled={!available || busy}>
                 {models.length === 0 && <option value="">No models found</option>}
-                {models.map(name => <option key={name} value={name}>{name}</option>)}
+                {models.map(name => <option key={name} value={name}>{modelLabel(name)}</option>)}
               </select>
             </label>
           </div>
@@ -131,7 +137,7 @@ export function AssistantPage() {
             {busy && (
               <div className="assistant-thinking" role="status">
                 <LoaderCircle size={16} className="assistant-spinner" />
-                <span>Thinking with your local model…</span>
+                <span>{onDevice ? 'Thinking…' : 'Thinking with your local model…'}</span>
               </div>
             )}
             {error && (
@@ -176,10 +182,10 @@ export function AssistantPage() {
           <section className="panel assistant-info-card">
             <span className="assistant-side-icon"><MessageCircle size={18} /></span>
             <h2>Private, local answers</h2>
-            <p>Your prompt and household context go to Ollama on this computer only. No cloud AI or external API is used.</p>
+            <p>{onDevice ? 'Ollama is not reachable, so a built-in responder on this device answers from your saved readings and appliances. Nothing leaves this device.' : 'Your prompt and household context go to Ollama on this computer only. No cloud AI or external API is used.'}</p>
             <div className="assistant-model-detail">
               <span>ACTIVE MODEL</span>
-              <strong>{available ? model : 'Not connected'}</strong>
+              <strong>{available ? modelLabel(model) : 'Not connected'}</strong>
             </div>
           </section>
           <section className={`assistant-connect-card ${available ? 'assistant-connect-ready' : ''}`} aria-live="polite">
@@ -187,7 +193,7 @@ export function AssistantPage() {
               {available ? <Sparkles size={17} /> : <CircleAlert size={17} />}
               <strong>{available ? 'Ready to help' : 'Ollama needs to be running'}</strong>
             </div>
-            <p>{available ? 'Answers are generated locally and use the latest saved data available to this app.' : statusError || 'The local Ollama model service could not be reached.'}</p>
+            <p>{onDevice ? 'Answers come from a built-in responder that works offline. Start Ollama for longer, free-form answers.' : available ? 'Answers are generated locally and use the latest saved data available to this app.' : statusError || 'The local Ollama model service could not be reached.'}</p>
             {!available && <p className="assistant-setup-hint">Start Ollama, install a model if needed, then refresh the model list.</p>}
             <button className="button button-secondary button-small" type="button" onClick={() => refreshModels()} disabled={busy || checking}>
               <RefreshCw size={14} /> Refresh models
