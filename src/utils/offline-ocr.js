@@ -26,21 +26,31 @@ const simdSupported = () => {
 // Tesseract page segmentation modes: automatic, one uniform block, one text line.
 const [PSM_AUTO, PSM_SINGLE_BLOCK, PSM_SINGLE_LINE] = ['3', '6', '7']
 
+// Same-origin URLs of the OCR worker, the engine this device can run, and the English language data.
+async function ocrAssets() {
+  const [{ default: workerPath }, { default: simdCore }, { default: plainCore }] = await Promise.all([
+    import('tesseract.js/dist/worker.min.js?url'),
+    import('tesseract.js-core/tesseract-core-simd-lstm.wasm.js?url'),
+    import('tesseract.js-core/tesseract-core-lstm.wasm.js?url'),
+  ])
+  return {
+    workerPath: new URL(workerPath, location.href).href,
+    corePath: new URL(simdSupported() ? simdCore : plainCore, location.href).href,
+    langPath: new URL(`${import.meta.env.BASE_URL}tessdata`, location.href).href,
+  }
+}
+
+// Downloads the OCR files in the background so the service worker caches them and photos can be read offline later.
+export async function warmOfflineOcr() {
+  const { workerPath, corePath, langPath } = await ocrAssets()
+  await Promise.all([workerPath, corePath, `${langPath}/eng.traineddata.gz`].map(url => fetch(url).then(response => response.arrayBuffer())))
+}
+
 let workerPromise = null
 async function getWorker() {
   workerPromise ??= (async () => {
-    const [{ createWorker }, { default: workerPath }, { default: simdCore }, { default: plainCore }] = await Promise.all([
-      import('tesseract.js'),
-      import('tesseract.js/dist/worker.min.js?url'),
-      import('tesseract.js-core/tesseract-core-simd-lstm.wasm.js?url'),
-      import('tesseract.js-core/tesseract-core-lstm.wasm.js?url'),
-    ])
-    const worker = await createWorker('eng', 1, {
-      workerPath: new URL(workerPath, location.href).href,
-      corePath: new URL(simdSupported() ? simdCore : plainCore, location.href).href,
-      langPath: new URL(`${import.meta.env.BASE_URL}tessdata`, location.href).href,
-      workerBlobURL: false,
-    })
+    const [{ createWorker }, assets] = await Promise.all([import('tesseract.js'), ocrAssets()])
+    const worker = await createWorker('eng', 1, { ...assets, workerBlobURL: false })
     await worker.setParameters({ tessedit_char_whitelist: '0123456789.' })
     return worker
   })()
