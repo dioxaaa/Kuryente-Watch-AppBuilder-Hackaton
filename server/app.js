@@ -2,6 +2,7 @@
 import express from 'express'
 import * as repo from './repository.js'
 import { trainDevice, scanDevice } from './service.js'
+import { cleanAppliance } from './appliances.js'
 
 export function createApp(db) {
   const app = express()
@@ -19,6 +20,16 @@ export function createApp(db) {
   app.get('/api/devices', wrap(() => repo.listDevices(db)))
   app.post('/api/devices', wrap(req => { repo.saveDevice(db, req.body); return { ok: true } }))
   app.delete('/api/devices/:name', wrap(req => ({ deleted: repo.deleteDevice(db, req.params.name) })))
+
+  // appliances (label watts x hours of use); the household inventory shown in the app
+  app.get('/api/appliances', wrap(() => repo.listAppliances(db)))
+  app.post('/api/appliances', wrap(req => repo.addAppliance(db, cleanAppliance(req.body))))
+  app.put('/api/appliances/:id', wrap(req => {
+    const updated = repo.updateAppliance(db, req.params.id, cleanAppliance(req.body))
+    if (!updated) { const e = new Error('Appliance not found.'); e.status = 404; throw e }
+    return updated
+  }))
+  app.delete('/api/appliances/:id', wrap(req => ({ deleted: repo.deleteAppliance(db, req.params.id) })))
 
   // readings
   app.post('/api/readings', wrap(req => {

@@ -34,6 +34,19 @@ CREATE TABLE IF NOT EXISTS alerts (
   dismissed  INTEGER NOT NULL DEFAULT 0
 );
 CREATE INDEX IF NOT EXISTS idx_alerts_device_start ON alerts(device, start);
+CREATE TABLE IF NOT EXISTS appliances (
+  id         TEXT PRIMARY KEY,
+  name       TEXT NOT NULL,
+  category   TEXT NOT NULL DEFAULT 'Other',
+  watts      REAL NOT NULL,          -- rated power from the label
+  hours      REAL NOT NULL,          -- hours used per day
+  pattern    TEXT NOT NULL DEFAULT 'Daily',
+  brand      TEXT,
+  model      TEXT,
+  sample     INTEGER NOT NULL DEFAULT 0, -- 1 = built-in example, 0 = added by the user
+  created_at TEXT NOT NULL,
+  updated_at TEXT NOT NULL
+);
 CREATE TABLE IF NOT EXISTS settings (
   key   TEXT PRIMARY KEY,
   value TEXT NOT NULL                -- JSON
