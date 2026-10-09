@@ -133,7 +133,7 @@ export async function api(path, { method = 'GET', body, signal } = {}) {
   }
   if (path === '/health' && !isHealthPayload(payload)) return goLocal(path, { method, body })
   if (!response.ok) {
-    if (response.status >= 500) {
+    if (response.status >= 500 || (path === '/meter-readings/read-photo' && response.status === 422)) {
       const fallback = aiFallback(path, body)
       if (fallback) return fallback
     }

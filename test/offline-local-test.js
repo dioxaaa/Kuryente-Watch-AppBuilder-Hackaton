@@ -4,7 +4,7 @@ import assert from 'node:assert/strict'
 import { extractMeterReading } from '../src/utils/offline-ocr.js'
 import { estimateDailyKwh, formatPeso } from '../src/utils/energy-utils.js'
 import { localApi } from '../src/local-api.js'
-import { api, isLocalMode, recheckServer } from '../src/api.js'
+import { api, isLocalMode, recheckServer, resetLocalMode } from '../src/api.js'
 
 const json = (body, status = 200) => new Response(JSON.stringify(body), { status, headers: { 'Content-Type': 'application/json' } })
 const html = () => new Response('<!doctype html><html></html>', { status: 200, headers: { 'Content-Type': 'text/html' } })
@@ -86,6 +86,38 @@ test('server mode: no Ollama models means the built-in assistant answers from se
   assert.equal(status.error, 'Ollama is offline.')
   const { reply } = await api.post('/assistant/chat', { message: 'Which appliance uses the most?', model: 'Built-in assistant' })
   assert.match(reply, /Server fridge is the biggest/)
+})
+
+test('dashboard assistant answers from its saved-data context when Ollama is unavailable', async t => {
+  const realFetch = globalThis.fetch
+  t.after(() => {
+    globalThis.fetch = realFetch
+    resetLocalMode()
+  })
+  resetLocalMode()
+  globalThis.fetch = async () => json({ error: 'Ollama is offline.' }, 503)
+  const { reply } = await api.post('/assistant', {
+    question: 'Which appliance uses the most?',
+    context: {
+      rate: 12.5,
+      appliances: [{ name: 'Kitchen fan', category: 'Electric fan', watts: 60, hoursPerDay: 8, monthlyKwh: 14.4 }],
+    },
+  })
+  assert.match(reply, /Kitchen fan is the biggest on your list/)
+})
+
+test('an unreadable server scan retries with on-device OCR', async t => {
+  const realFetch = globalThis.fetch
+  t.after(() => {
+    globalThis.fetch = realFetch
+    resetLocalMode()
+  })
+  resetLocalMode()
+  globalThis.fetch = async () => json({ error: 'Could not read a kWh number from this photo.' }, 422)
+  await assert.rejects(
+    api.post('/meter-readings/read-photo', { image: 'data:image/jpeg;base64,AA==' }),
+    error => error.status === 503 && /This device could not read the photo/.test(error.message),
+  )
 })
 
 test('local meter reset starts a new cumulative sequence without a false usage delta', async () => {

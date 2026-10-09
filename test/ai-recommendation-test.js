@@ -64,15 +64,16 @@ test('POST /api/ai/recommendation rejects missing appliance name or rated watts'
   })
 })
 
-test('POST /api/ai/recommendation falls back to a fixed tip when Ollama fails', async () => {
-  const fallback = /^For your Rice cooker, consider unplugging it when idle/
+test('POST /api/ai/recommendation gives data-based advice when Ollama fails', async () => {
   for (const ollama of [fakeOllama({ offline: true }), fakeOllama({ chatStatus: 500 })]) {
     await withApi(ollama.fetchImpl, async post => {
-      const res = await post('/ai/recommendation', { applianceName: 'Rice cooker', ratedWatts: 700 })
+      const res = await post('/ai/recommendation', { applianceName: 'Rice cooker', category: 'Rice cooker', ratedWatts: 700, hoursPerDay: 1 })
       assert.equal(res.status, 200)
       assert.equal(res.body.success, true)
       assert.equal(res.body.appliance, 'Rice cooker')
-      assert.match(res.body.insight, fallback)
+      assert.match(res.body.insight, /uses about 0\.70 kWh a day, about ₱262\.50 a month/)
+      assert.match(res.body.insight, /Unplug it after cooking/)
+      assert.doesNotMatch(res.body.insight, /save up to 15%|off-peak/)
     })
   }
 })

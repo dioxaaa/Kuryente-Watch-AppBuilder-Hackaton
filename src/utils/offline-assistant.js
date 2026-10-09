@@ -3,7 +3,7 @@
 import { alertImpact, kwhText, pesoText } from './alert-impact.js'
 import { duration } from './alerts.js'
 
-const peso = n => `₱${Math.round(n).toLocaleString('en-PH')}`
+const peso = n => `₱${Number(n).toLocaleString('en-PH', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`
 const num = value => (Number.isFinite(Number(value)) ? Number(value) : null)
 
 const CATEGORY_TIPS = {

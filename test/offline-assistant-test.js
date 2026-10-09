@@ -17,7 +17,7 @@ test('offline assistant names the biggest appliance with its share and cost', ()
   const reply = offlineAnswer('Which appliance uses the most?', context)
   assert.match(reply, /Bedroom aircon is the biggest/)
   assert.match(reply, /90% of the estimate/)
-  assert.match(reply, /₱2,025/)
+  assert.match(reply, /₱2,025\.00/)
 })
 
 test('offline assistant explains a high bill from the meter trend', () => {
@@ -34,7 +34,7 @@ test('offline assistant gives per-appliance saving tips and handles empty data',
 
 test('applianceTip returns daily kWh, monthly cost and a category tip', () => {
   assert.equal(applianceTip({ applianceName: 'Rice cooker', category: 'Rice cooker', ratedWatts: 600, hoursPerDay: 1.5 }, 12.5),
-    'Your Rice cooker uses about 0.90 kWh a day, about ₱338 a month. Unplug it after cooking instead of leaving it on "keep warm" for hours.')
+    'Your Rice cooker uses about 0.90 kWh a day, about ₱337.50 a month. Unplug it after cooking instead of leaving it on "keep warm" for hours.')
   assert.match(applianceTip({ applianceName: 'Aircon', ratedWatts: 1000, hoursPerDay: 8 }), /8\.00 kWh a day\. Set it to 24–25°C/)
 })
 

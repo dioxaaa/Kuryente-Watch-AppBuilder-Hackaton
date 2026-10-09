@@ -11,6 +11,7 @@ import { cleanAppliance } from './appliances.js'
 import { cleanMeterReading } from './meter-readings.js'
 import { METER_DEVICE, meterStatus, scanMeterReadings } from './meter-alerts.js'
 import { checkReading } from '../src/utils/meter-check.js'
+import { applianceTip } from '../src/utils/offline-assistant.js'
 
 const appRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..')
 const categories = new Set(['Refrigerator', 'Electric fan', 'Air conditioner', 'Rice cooker', 'Television', 'Washing machine', 'Other'])
@@ -490,7 +491,7 @@ export function createApp(db, {
   app.put('/api/settings/:key', wrap(req => { repo.setSetting(db, req.params.key, req.body.value); return { ok: true } }))
   // Two-sentence saving tip for one appliance from the local AI. Falls back to a fixed tip so the widget never hangs.
   app.post('/api/ai/recommendation', async (req, res) => {
-    const { applianceName, ratedWatts, hoursPerDay } = req.body ?? {}
+    const { applianceName, ratedWatts, hoursPerDay, category } = req.body ?? {}
     if (!applianceName || !ratedWatts) return res.status(400).json({ error: 'Missing appliance name or rated watts.' })
     const name = String(applianceName).slice(0, 100)
     const watts = Number(ratedWatts)
@@ -515,7 +516,12 @@ export function createApp(db, {
       res.json({
         success: true,
         appliance: name,
-        insight: `For your ${name}, consider unplugging it when idle to prevent phantom energy draw and run it during off-peak hours to save up to 15% on your bill.`,
+        insight: applianceTip({
+          applianceName: name,
+          category,
+          ratedWatts: watts,
+          hoursPerDay: hours,
+        }, appRepo.getAppSettings(db).ratePerKwh),
       })
     }
   })
