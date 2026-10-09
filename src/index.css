@@ -1323,3 +1323,11 @@ body { background: var(--bg); letter-spacing: -.005em; }
 .meter-compare strong { color: var(--ink); }
 [data-theme="dark"] .meter-compare { border-color: #234030; color: #b9cfc1; background: #12231a; }
 [data-theme="dark"] .meter-compare > svg, [data-theme="dark"] .meter-compare strong { color: var(--brand); }
+
+/* Appliance cost estimates and label scan */
+.appliance-estimate .appliance-cost { color: #6b7a70; font-size: 11px; }
+.appliance-preview { margin-top: 10px; padding: 12px 14px; border-radius: 12px; }
+.appliance-preview strong { font-size: 14px; }
+.estimate-total { margin: 10px 0 0; padding-top: 10px; border-top: 1px dashed #dfe8e2; color: #65746b; font-size: 12px; line-height: 1.5; }
+.estimate-total strong { color: #2c794d; }
+.photo-note > span { line-height: 1.45; }

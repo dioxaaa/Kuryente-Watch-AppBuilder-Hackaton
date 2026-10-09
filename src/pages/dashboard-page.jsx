@@ -4,7 +4,7 @@ import { StatCard } from '../components/stat-card'
 import { UsageChart } from '../components/usage-chart'
 import { EmptyState } from '../components/empty-state'
 import { AssistantWidget } from '../components/assistant-widget'
-import { daysInMonth, formatDate, formatPeso, meterDailyUse } from '../utils/energy-utils'
+import { daysInMonth, estimateDailyKwh, formatDate, formatPeso, meterDailyUse } from '../utils/energy-utils'
 
 export function DashboardPage({ profile, readings, alerts, appliances, rate, onNavigate }) {
   const current = readings.at(-1)
@@ -21,7 +21,9 @@ export function DashboardPage({ profile, readings, alerts, appliances, rate, onN
     usage: Number(reading.usageKwh.toFixed(2)),
   }))
   const recentAlerts = alerts.filter(alert => !alert.read && !alert.dismissed).slice(0, 3)
-  const topAppliances = appliances.slice(0, 4)
+  const rankedAppliances = appliances.map(item => ({ ...item, monthKwh: estimateDailyKwh(item) * 30 })).sort((a, b) => b.monthKwh - a.monthKwh)
+  const topAppliances = rankedAppliances.slice(0, 4)
+  const estimateTotalKwh = rankedAppliances.reduce((sum, item) => sum + item.monthKwh, 0)
 
   return (
     <>
@@ -56,10 +58,11 @@ export function DashboardPage({ profile, readings, alerts, appliances, rate, onN
       </div>
       <div className="dashboard-grid dashboard-lower-grid">
         <section className="panel">
-          <div className="panel-heading"><div><h2>Appliance estimates</h2><p>Estimated from rated watts and hours of use</p></div><button className="text-button" onClick={() => onNavigate('appliances')}>Manage <ArrowRight size={15} /></button></div>
+          <div className="panel-heading"><div><h2>Appliance estimates</h2><p>Label estimates for 30 days · not measured</p></div><button className="text-button" onClick={() => onNavigate('appliances')}>Manage <ArrowRight size={15} /></button></div>
           {topAppliances.length ? topAppliances.map(item => (
-            <div className="activity-item" key={item.id}><span className="activity-icon"><Plug size={16} /></span><span><strong>{item.name}</strong><small>{item.watts} W · {item.hours} hours/day · estimate only</small></span></div>
+            <div className="activity-item" key={item.id}><span className="activity-icon"><Plug size={16} /></span><span><strong>{item.name}</strong><small>{item.watts} W · {item.hours} hours/day · estimate only</small></span><b>{formatPeso(item.monthKwh * rate)}</b></div>
           )) : <EmptyState title="No appliances added" description="Add appliances to estimate usage from their rating labels." action={<button className="button button-secondary" onClick={() => onNavigate('appliances')}>Add appliance</button>} />}
+          {topAppliances.length > 0 && <p className="estimate-total">{rankedAppliances.length > topAppliances.length ? `All ${rankedAppliances.length} appliances` : 'Total'}: about <strong>{estimateTotalKwh.toFixed(0)} kWh</strong> · <strong>{formatPeso(estimateTotalKwh * rate)}</strong> per 30 days. Estimated from labels; your meter bill above is the measured figure.</p>}
         </section>
         <section className="panel assistant-preview">
           <div className="panel-heading"><div><h2>Energy Assistant</h2><p>Ask about your local energy data</p></div><button className="text-button" onClick={() => onNavigate('assistant')}>Open <ArrowRight size={15} /></button></div>

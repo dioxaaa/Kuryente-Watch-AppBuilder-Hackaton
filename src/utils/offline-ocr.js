@@ -1,5 +1,7 @@
 // On-device meter photo reading with Tesseract (WebAssembly), used when the KuryenteWatch server or its vision model is unavailable.
 // The worker, OCR engine and English language data are bundled with the app (see vite.config.ts), so this works with no internet.
+import { hasLabelDetails, parseApplianceLabel } from './label-parse.js'
+
 export const OCR_MODEL = 'On-device OCR (Tesseract)'
 export const NO_DIGITS_MESSAGE = 'Could not find the meter digits in this photo. Please type the reading manually.'
 
@@ -80,4 +82,44 @@ export async function readMeterPhotoOnDevice(image) {
   const found = extractMeterReading(text)
   if (!found) throw Object.assign(new Error(NO_DIGITS_MESSAGE), { status: 422 })
   return { ...found, model: OCR_MODEL }
+}
+
+
+// Appliance rating labels contain letters (INPUT, 220V, 60W), so they use their own worker without the digits-only filter.
+// Sparse-text mode (11) finds small printed fields that automatic layout skips.
+let labelWorkerPromise = null
+async function getLabelWorker() {
+  labelWorkerPromise ??= (async () => {
+    const [{ createWorker }, assets] = await Promise.all([import('tesseract.js'), ocrAssets()])
+    return createWorker('eng', 1, { ...assets, workerBlobURL: false })
+  })()
+  try {
+    return await labelWorkerPromise
+  } catch (error) {
+    labelWorkerPromise = null
+    throw error
+  }
+}
+
+export const NO_LABEL_MESSAGE = 'Could not read any specifications from this photo. Move closer, avoid glare, or type the details in.'
+
+// `image` is a JPEG data URL. Returns the suggested specifications { watts, source, volts, amps, brand, model, otherWatts, text, engine }.
+export async function readApplianceLabelOnDevice(image) {
+  if (typeof image !== 'string' || !image.startsWith('data:image/')) throw Object.assign(new Error('Choose a photo first.'), { status: 400 })
+  let best = null
+  let bestText = ''
+  try {
+    const worker = await getLabelWorker()
+    for (const mode of [PSM_AUTO, '11']) {
+      await worker.setParameters({ tessedit_pageseg_mode: mode })
+      const text = (await worker.recognize(image)).data.text
+      const parsed = parseApplianceLabel(text)
+      if (!best || (parsed.watts && !best.watts) || (!best.watts && hasLabelDetails(parsed) && !hasLabelDetails(best))) { best = parsed; bestText = text }
+      if (best.watts) break
+    }
+  } catch {
+    throw Object.assign(new Error('This device could not read the photo. Please type the details in.'), { status: 503 })
+  }
+  if (!hasLabelDetails(best)) throw Object.assign(new Error(NO_LABEL_MESSAGE), { status: 422 })
+  return { ...best, text: bestText.replace(/\s+/g, ' ').trim().slice(0, 400), engine: OCR_MODEL }
 }
