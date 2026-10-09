@@ -1300,6 +1300,8 @@ body { background: var(--bg); letter-spacing: -.005em; }
 
 .meter-check { margin-top: -6px; }
 
+.meter-check { margin-top: -6px; }
+
 /* Phones: stack form fields, keep the header on one line, and fit the assistant inside the visible screen */
 @media (max-width: 650px) {
   .main-content { padding-bottom: 96px; }

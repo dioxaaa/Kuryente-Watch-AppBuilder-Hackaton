@@ -23,10 +23,13 @@ const simdSupported = () => {
   catch { return false }
 }
 
+// Tesseract page segmentation modes: automatic, one uniform block, one text line.
+const [PSM_AUTO, PSM_SINGLE_BLOCK, PSM_SINGLE_LINE] = ['3', '6', '7']
+
 let workerPromise = null
 async function getWorker() {
   workerPromise ??= (async () => {
-    const [{ createWorker, PSM }, { default: workerPath }, { default: simdCore }, { default: plainCore }] = await Promise.all([
+    const [{ createWorker }, { default: workerPath }, { default: simdCore }, { default: plainCore }] = await Promise.all([
       import('tesseract.js'),
       import('tesseract.js/dist/worker.min.js?url'),
       import('tesseract.js-core/tesseract-core-simd-lstm.wasm.js?url'),
@@ -38,7 +41,7 @@ async function getWorker() {
       langPath: new URL(`${import.meta.env.BASE_URL}tessdata`, location.href).href,
       workerBlobURL: false,
     })
-    await worker.setParameters({ tessedit_char_whitelist: '0123456789.', tessedit_pageseg_mode: PSM.AUTO })
+    await worker.setParameters({ tessedit_char_whitelist: '0123456789.' })
     return worker
   })()
   try {
@@ -55,7 +58,12 @@ export async function readMeterPhotoOnDevice(image) {
   let text
   try {
     const worker = await getWorker()
-    text = (await worker.recognize(image)).data.text
+    // Automatic layout often misses a single large meter display, so retry as one block and as one line.
+    for (const mode of [PSM_AUTO, PSM_SINGLE_BLOCK, PSM_SINGLE_LINE]) {
+      await worker.setParameters({ tessedit_pageseg_mode: mode })
+      text = (await worker.recognize(image)).data.text
+      if (extractMeterReading(text)) break
+    }
   } catch {
     throw Object.assign(new Error('This device could not read the photo. Please type the reading manually.'), { status: 503 })
   }

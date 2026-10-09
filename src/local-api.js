@@ -187,7 +187,7 @@ export async function builtInChat(body = {}, load) {
     alerts,
     rate: ratePerKwh,
   })
-  return { reply: offlineAnswer(message, context), model: BUILT_IN_MODEL }
+  return { reply: offlineAnswer(message, context, body.history), model: BUILT_IN_MODEL }
 }
 
 // Tesseract is loaded only when a photo is read, so it does not slow down opening the app.
@@ -203,7 +203,7 @@ export async function readPhoto(body = {}) {
 export function offlineReply(body = {}) {
   const question = String(body.question ?? '').trim()
   if (!question) fail('Please type a question.')
-  return { reply: offlineAnswer(question, body.context ?? {}), model: BUILT_IN_MODEL }
+  return { reply: offlineAnswer(question, body.context ?? {}, body.history), model: BUILT_IN_MODEL }
 }
 
 export function offlineRecommendation(body = {}, rate) {

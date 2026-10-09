@@ -57,27 +57,70 @@ function alertSentence(context) {
   return `There ${alerts.length === 1 ? 'is 1 alert' : `are ${alerts.length} alerts`} worth a look on the Alerts page.`
 }
 
-// `context` is what buildAssistantContext() produces. Returns plain text.
-export function offlineAnswer(question, context = {}) {
-  const q = String(question ?? '').toLowerCase()
+const SUGGEST = 'You can ask "Why is my bill high?", "Which appliance uses the most?", "How can I save electricity?" or "Any alerts?"'
+
+const TOPICS = [
+  { words: /(aircon|air ?con|\bac\b|a\/c)/, category: 'Air conditioner' },
+  { words: /(\bref\b|fridge|refrigerator|ref\b)/, category: 'Refrigerator' },
+  { words: /(\bfan\b|electric ?fan|bentilador)/, category: 'Electric fan' },
+  { words: /(rice ?cooker|kaldero)/, category: 'Rice cooker' },
+  { words: /(\btv\b|television)/, category: 'Television' },
+  { words: /(washing|laundry|labada)/, category: 'Washing machine' },
+]
+
+function topicAnswer(topic, list, rate) {
+  const own = list.find(a => a.category === topic.category || new RegExp(topic.category.split(' ')[0], 'i').test(a.name))
+  if (own) return applianceTip({ applianceName: own.name, category: own.category, ratedWatts: own.watts, hoursPerDay: own.hoursPerDay }, rate)
+  return `${CATEGORY_TIPS[topic.category]} Add it to your appliances to see what it costs you each month.`
+}
+
+function lastReply(history) {
+  const items = Array.isArray(history) ? history : []
+  for (let i = items.length - 1; i >= 0; i--) if (items[i]?.role === 'assistant' && !items[i].error) return String(items[i].content ?? '')
+  return ''
+}
+
+// `context` is what buildAssistantContext() produces; `history` is the earlier chat ({ role, content }). Returns plain text.
+export function offlineAnswer(question, context = {}, history = []) {
+  const reply = pickAnswer(question, context)
+  if (reply && reply === lastReply(history) && !reply.startsWith('Sorry')) return `That is still the latest from your saved data. ${SUGGEST}`
+  return reply
+}
+
+function pickAnswer(question, context) {
+  const q = String(question ?? '').toLowerCase().trim()
+  const words = q.match(/[a-z0-9₱]+/g) ?? []
   const rate = num(context.rate)
   const list = rankedAppliances(context)
   const mentioned = list.find(a => q.includes(String(a.name).toLowerCase()))
+  const topic = TOPICS.find(t => t.words.test(q))
 
   if (mentioned) return applianceTip({ applianceName: mentioned.name, category: mentioned.category, ratedWatts: mentioned.watts, hoursPerDay: mentioned.hoursPerDay }, rate)
+  if (/^(thanks|thank you|thank u|ty|thx|salamat|tnx)\b/.test(q)) return `You're welcome! ${SUGGEST}`
+  if (words.length <= 4 && /^(hi|hello|hey|yo|hoy|good (morning|afternoon|evening)|kumusta|musta|magandang)\b/.test(q)) {
+    return `Hi! I answer from your saved meter readings, appliances and alerts, and I work without internet. ${SUGGEST}`
+  }
+  if (/(help|what can you|ano.*(kaya|pwede)|how (do|does) (you|this) work)/.test(q)) {
+    return `I can tell you your daily use and monthly estimate, which appliance costs the most, saving tips for each appliance, and what the alerts mean. ${SUGGEST}`
+  }
   if (/(most|biggest|largest|highest|pinaka|malaki)/.test(q)) {
     return [biggestSentence(list, rate), list[0] ? tipFor(list[0]) : ''].filter(Boolean).join(' ')
   }
+  if (topic) return topicAnswer(topic, list, rate)
   if (/(save|saving|tip|reduce|lower|tipid|bawas)/.test(q)) {
     const tips = list.slice(0, 3).map(a => `• ${a.name}: ${tipFor(a)}`)
     return tips.length ? `Start with your biggest users:\n${tips.join('\n')}` : `${GENERAL_TIP} Add your appliances to get tips for each one.`
   }
-  if (/(bill|high|mahal|taas|cost|bayad)/.test(q)) {
+  if (/(rate|per kwh|price|presyo|singil)/.test(q)) {
+    return rate ? `Your rate is set to ₱${rate.toFixed(2)} per kWh. You can change it in Settings to match your latest bill.` : 'Set your rate per kWh in Settings so I can estimate costs.'
+  }
+  if (/(bill|high|mahal|taas|cost|bayad|month|buwan)/.test(q)) {
     return [meterSentence(context, rate), list.length ? biggestSentence(list, rate) : '', alertSentence(context)].filter(Boolean).join(' ')
   }
-  if (/(use|usage|kwh|consum|reading|meter|konsumo)/.test(q)) return meterSentence(context, rate)
-  if (/(alert|unusual|warning)/.test(q)) return alertSentence(context) || 'There are no alerts right now.'
-  return [meterSentence(context, rate), list.length ? biggestSentence(list, rate) : '', 'You can ask "Why is my bill high?", "Which appliance uses the most?" or "How can I save electricity?"'].filter(Boolean).join(' ')
+  if (/(use|usage|kwh|consum|reading|meter|konsumo|today|daily|day)/.test(q)) return meterSentence(context, rate)
+  if (/(alert|unusual|warning|problem|spike|jump)/.test(q)) return alertSentence(context) || 'There are no alerts right now.'
+  if (words.length <= 2 || !/[a-z]{3}/.test(q)) return `Sorry, I didn't get that. ${SUGGEST}`
+  return [meterSentence(context, rate), list.length ? biggestSentence(list, rate) : '', SUGGEST].filter(Boolean).join(' ')
 }
 
 // Two-sentence tip for one appliance, the same shape as POST /api/ai/recommendation's insight.
