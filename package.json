@@ -6,10 +6,14 @@
   "scripts": {
     "dev": "vite",
     "build": "vite build",
-    "preview": "vite preview"
+    "preview": "vite preview",
+    "test": "node --test test/detector.test.js test/server.test.js",
+    "server": "node server/index.js",
+    "seed": "node server/seed.js"
   },
   "dependencies": {
-    "dexie": "^4.4.6",
+    "better-sqlite3": "^13.0.3",
+    "express": "^5.2.1",
     "lucide-react": "^0.468.0",
     "react": "^18.3.1",
     "react-dom": "^18.3.1",
@@ -17,7 +21,6 @@
   },
   "devDependencies": {
     "@vitejs/plugin-react": "^4.3.4",
-    "fake-indexeddb": "^6.2.5",
     "vite": "^6.0.5",
     "vite-plugin-pwa": "^0.21.1"
   }
