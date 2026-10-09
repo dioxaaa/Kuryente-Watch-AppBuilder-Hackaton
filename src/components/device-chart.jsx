@@ -81,19 +81,19 @@ export function DeviceChart({ device, alertId, heading = false, compact = false 
       <div className={`device-chart-plot ${compact ? 'device-chart-compact' : ''}`} role="img" aria-label={`Power over time for ${data.label}, compared with its normal range. ${summary}`}>
         <ResponsiveContainer width="100%" height="100%">
           <ComposedChart data={rows} margin={{ top: 14, right: 10, left: -18, bottom: 0 }}>
-            <CartesianGrid vertical={false} stroke="#edf0ed" strokeDasharray="3 5" />
-            <XAxis dataKey="x" type="number" scale="time" domain={['dataMin', 'dataMax']} ticks={ticks} axisLine={false} tickLine={false} tick={{ fill: '#8a958e', fontSize: 10 }} dy={8} tickFormatter={v => (spansDays ? dayHourFormat : hourFormat).format(v)} />
-            <YAxis axisLine={false} tickLine={false} tick={{ fill: '#8a958e', fontSize: 10 }} domain={[0, 'auto']} tickFormatter={v => `${Math.round(v)}`} width={46} />
-            <Tooltip content={<ChartTooltip />} cursor={{ stroke: '#b9c4bc', strokeDasharray: '3 3' }} />
+            <CartesianGrid vertical={false} stroke="#e3ebe5" strokeDasharray="3 5" />
+            <XAxis dataKey="x" type="number" scale="time" domain={['dataMin', 'dataMax']} ticks={ticks} axisLine={false} tickLine={false} tick={{ fill: '#86948b', fontSize: 10 }} dy={8} tickFormatter={v => (spansDays ? dayHourFormat : hourFormat).format(v)} />
+            <YAxis axisLine={false} tickLine={false} tick={{ fill: '#86948b', fontSize: 10 }} domain={[0, 'auto']} tickFormatter={v => `${Math.round(v)}`} width={46} />
+            <Tooltip content={<ChartTooltip />} cursor={{ stroke: '#b3c7ba', strokeDasharray: '3 3' }} />
             {events.map(e => (
               <ReferenceArea key={e.id} x1={e.x1} x2={e.x2} fill="#d9534f" fillOpacity={e.id === focusEvent?.id ? 0.14 : 0.08} stroke="#d9534f" strokeOpacity={e.id === focusEvent?.id ? 0.35 : 0.2} ifOverflow="visible"
                 label={e.id === focusEvent?.id ? { value: 'Alert', position: 'insideTop', fill: '#b84b46', fontSize: 10, fontWeight: 700 } : undefined} />
             ))}
             {/* The learned normal band: an invisible base area up to the low edge, then a tinted area for its width. */}
             <Area dataKey="low" stackId="band" type="stepAfter" stroke="none" fill="transparent" isAnimationActive={false} activeDot={false} legendType="none" />
-            <Area dataKey="span" stackId="band" type="stepAfter" stroke="none" fill="#27a36b" fillOpacity={0.16} isAnimationActive={false} activeDot={false} legendType="none" />
-            <Line dataKey="watts" type="stepAfter" stroke="#9aa89f" strokeOpacity={0.3} strokeWidth={1} dot={false} activeDot={false} isAnimationActive={false} />
-            <Line dataKey="avg" type="monotone" stroke="#1d7a52" strokeWidth={2} dot={false} isAnimationActive={false} />
+            <Area dataKey="span" stackId="band" type="stepAfter" stroke="none" fill="#2f9e5d" fillOpacity={0.16} isAnimationActive={false} activeDot={false} legendType="none" />
+            <Line dataKey="watts" type="stepAfter" stroke="#98a1b5" strokeOpacity={0.3} strokeWidth={1} dot={false} activeDot={false} isAnimationActive={false} />
+            <Line dataKey="avg" type="monotone" stroke="#1a6e3f" strokeWidth={2} dot={false} isAnimationActive={false} />
             <Line dataKey="flagged" type="monotone" stroke="#d9534f" strokeWidth={3} dot={false} connectNulls={false} isAnimationActive={false} />
           </ComposedChart>
         </ResponsiveContainer>
