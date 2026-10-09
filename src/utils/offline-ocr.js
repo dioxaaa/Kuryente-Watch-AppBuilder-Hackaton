@@ -1,8 +1,10 @@
-// On-device meter photo reading with Tesseract (WebAssembly), used when the KuryenteWatch server or its vision model is unavailable.
+// On-device meter and appliance label photo reading with Tesseract (WebAssembly), used when the KuryenteWatch server or its vision model is unavailable.
 // The worker, OCR engine and English language data are bundled with the app (see vite.config.ts), so this works with no internet.
 import { hasLabelDetails, parseApplianceLabel } from './label-parse.js'
 
 export const OCR_MODEL = 'On-device OCR (Tesseract)'
+import { parseLabelTexts } from './appliance-label.js'
+
 export const NO_DIGITS_MESSAGE = 'Could not find the meter digits in this photo. Please type the reading manually.'
 
 // Picks the meter value from OCR text: the run with the most digits wins, keeping a decimal part when one is shown.
@@ -49,6 +51,13 @@ export async function warmOfflineOcr() {
 }
 
 let workerPromise = null
+let queue = Promise.resolve()
+// Meter and label reading share one worker with different settings, so jobs run one at a time.
+function withWorker(job) {
+  const run = queue.then(async () => job(await getWorker()))
+  queue = run.catch(() => {})
+  return run
+}
 async function getWorker() {
   workerPromise ??= (async () => {
     const [{ createWorker }, assets] = await Promise.all([import('tesseract.js'), ocrAssets()])

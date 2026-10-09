@@ -84,7 +84,7 @@ function aiFallback(path, body) {
   if (path === '/assistant') return offlineReply(body)
   if (path === '/ai/recommendation') return offlineRecommendation(body)
   if (path === '/assistant/chat') return builtInServerChat(body)
-  if (path === '/meter-readings/read-photo') return useLocal(path, { method: 'POST', body })
+  if (path === '/meter-readings/read-photo' || path === '/appliances/read-label') return useLocal(path, { method: 'POST', body })
   return null
 }
 

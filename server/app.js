@@ -7,6 +7,7 @@ import * as repo from './repository.js'
 import { trainDevice, scanDevice, scanAllDevices, deviceChart } from './service.js'
 import { explainAlert } from './alert-explainer.js'
 import { readMeterPhoto } from './meter-ocr.js'
+import { readApplianceLabel } from './appliance-label.js'
 import { cleanAppliance } from './appliances.js'
 import { cleanMeterReading } from './meter-readings.js'
 import { METER_DEVICE, meterStatus, scanMeterReadings } from './meter-alerts.js'
@@ -322,6 +323,11 @@ export function createApp(db, {
   }))
 
   app.get('/api/appliances', wrap(() => repo.listAppliances(db)))
+  // Suggests appliance details from a rating label photo with the local vision model. Nothing is saved: the person confirms first.
+  app.post('/api/appliances/read-label', async (req, res) => {
+    try { res.json(await readApplianceLabel(req.body?.image, { chat })) }
+    catch (err) { res.status(err.status || 500).json({ error: err.message }) }
+  })
   app.post('/api/appliances', wrap((req, res) => {
     const body = objectBody(req.body)
     if (body.ratedWatts !== undefined || body.hoursPerDay !== undefined) {

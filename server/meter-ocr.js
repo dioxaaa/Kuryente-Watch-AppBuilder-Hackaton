@@ -2,8 +2,8 @@
 // The photo is analyzed in memory and never stored. The browser is told to check the number before saving.
 import { callOllama, httpError } from './assistant.js'
 
-const VISION_MODEL = process.env.OLLAMA_VISION_MODEL || 'qwen2.5vl:3b'
-const VISION_TIMEOUT_MS = Number(process.env.OLLAMA_VISION_TIMEOUT_MS) || 180000 // the first call loads the model, which is slow
+export const VISION_MODEL = process.env.OLLAMA_VISION_MODEL || 'qwen2.5vl:3b'
+export const VISION_TIMEOUT_MS = Number(process.env.OLLAMA_VISION_TIMEOUT_MS) || 180000 // the first call loads the model, which is slow
 const MAX_BASE64_CHARS = 8_000_000
 
 const PROMPT = [
@@ -26,12 +26,18 @@ export function parseMeterReply(text) {
   return { kwh: Math.round(kwh * 100) / 100, digits: typeof data.digits === 'string' ? data.digits.slice(0, 20) : null }
 }
 
-// `image` is a base64 string or data URL. `chat` is injectable so tests do not need Ollama.
-export async function readMeterPhoto(image, { chat = callOllama } = {}) {
+// Checks an uploaded photo (base64 or data URL) and returns plain base64 for Ollama.
+export function photoBase64(image) {
   const base64 = String(image ?? '').replace(/^data:image\/[\w.+-]+;base64,/, '').replace(/\s/g, '')
   if (!base64) throw httpError(400, 'Choose a photo first.')
   if (base64.length > MAX_BASE64_CHARS) throw httpError(400, 'That photo is too large to read. Try a smaller one.')
   if (!/^[A-Za-z0-9+/]+=*$/.test(base64)) throw httpError(400, 'That does not look like a valid image.')
+  return base64
+}
+
+// `image` is a base64 string or data URL. `chat` is injectable so tests do not need Ollama.
+export async function readMeterPhoto(image, { chat = callOllama } = {}) {
+  const base64 = photoBase64(image)
 
   const { reply, model } = await chat(
     [{ role: 'user', content: PROMPT, images: [base64] }],
