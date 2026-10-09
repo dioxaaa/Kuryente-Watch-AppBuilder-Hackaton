@@ -25,7 +25,7 @@ export function DashboardPage({ profile, readings, alerts, appliances, rate, onN
     <>
       <PageTitle
         eyebrow={new Intl.DateTimeFormat('en-PH', { weekday: 'long', month: 'long', day: 'numeric' }).format(new Date()).toUpperCase()}
-        title={`Good day, ${profile.userName} 👋`}
+        title={`Good day, ${profile.userName}`}
         description={`${profile.householdName} · A clear view of your household energy.`}
         action={<button className="button button-primary" onClick={() => onNavigate('meter')}><Zap size={17} /> Add meter reading</button>}
       />

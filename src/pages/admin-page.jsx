@@ -19,7 +19,7 @@ export function AdminPage({ onNavigate }) {
         <section className="panel about-hero">
           <div className="about-brand-icon"><span className="brand-mark"><span>ϟ</span></span></div>
           <span className="eyebrow">KURYENTEWATCH · LOCAL APP</span>
-          <h2>The Local Energy Detective</h2>
+          <h2>The Local Energy Companion</h2>
           <p>Track cumulative meter readings, explore appliance estimates, and review local rule-based usage signals.</p>
           <button className="button button-primary" onClick={() => onNavigate('meter')}><Eye size={16} /> Add a meter reading</button>
         </section>
