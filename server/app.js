@@ -4,7 +4,13 @@ import path from 'node:path'
 import { fileURLToPath } from 'node:url'
 import * as appRepo from './app-repository.js'
 import * as repo from './repository.js'
-import { trainDevice, scanDevice } from './service.js'
+import { trainDevice, scanDevice, scanAllDevices, deviceChart } from './service.js'
+import { askAssistant } from './assistant.js'
+import { explainAlert } from './alert-explainer.js'
+import { readMeterPhoto } from './meter-ocr.js'
+import { cleanAppliance } from './appliances.js'
+import { cleanMeterReading } from './meter-readings.js'
+import { checkReading } from '../src/utils/meter-check.js'
 
 const appRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..')
 const categories = new Set(['Refrigerator', 'Electric fan', 'Air conditioner', 'Rice cooker', 'Television', 'Washing machine', 'Other'])
@@ -138,19 +144,12 @@ function assistantContext(db) {
   }
 }
 
+// Local model calls and storage are injectable so API tests do not need Ollama.
 export function createApp(db, {
   ollamaBaseUrl = process.env.OLLAMA_HOST || 'http://127.0.0.1:11434',
   fetchImpl = fetch,
+  chat,
 } = {}) {
-import { trainDevice, scanDevice, scanAllDevices, deviceChart } from './service.js'
-import { askAssistant } from './assistant.js'
-import { explainAlert } from './alert-explainer.js'
-import { readMeterPhoto } from './meter-ocr.js'
-import { cleanAppliance } from './appliances.js'
-import { cleanMeterReading } from './meter-readings.js'
-import { checkReading } from '../src/utils/meter-check.js'
-// `chat` can be replaced in tests so they do not need a running Ollama.
-export function createApp(db, { chat } = {}) {
   const app = express()
   const ollamaUrl = localOllamaUrl(ollamaBaseUrl)
   app.disable('x-powered-by')
@@ -290,21 +289,31 @@ export function createApp(db, { chat } = {}) {
     return { reading }
   }))
 
-  app.get('/api/appliances', wrap(() => appRepo.listAppliances(db)))
+  app.get('/api/appliances', wrap(() => repo.listAppliances(db)))
   app.post('/api/appliances', wrap((req, res) => {
-    const appliance = appRepo.createAppliance(db, validateAppliance(req.body))
-    res.status(201)
-    return { appliance }
+    const body = objectBody(req.body)
+    if (body.ratedWatts !== undefined || body.hoursPerDay !== undefined) {
+      const appliance = appRepo.createAppliance(db, validateAppliance(body))
+      res.status(201)
+      return { appliance }
+    }
+    return repo.addAppliance(db, cleanAppliance(body))
   }))
-  app.put('/api/appliances/:id', wrap(req => {
+  app.put('/api/appliances/:id', wrap((req, res) => {
     const id = requiredText(req.params.id, 'Appliance ID', 80)
-    const appliance = appRepo.updateAppliance(db, id, validateAppliance(req.body))
+    const body = objectBody(req.body)
+    if (body.ratedWatts !== undefined || body.hoursPerDay !== undefined) {
+      const appliance = appRepo.updateAppliance(db, id, validateAppliance(body))
+      if (!appliance) fail('Appliance not found.', 404)
+      return { appliance }
+    }
+    const appliance = repo.updateAppliance(db, id, cleanAppliance(body))
     if (!appliance) fail('Appliance not found.', 404)
-    return { appliance }
+    return appliance
   }))
   app.delete('/api/appliances/:id', wrap(req => {
     const id = requiredText(req.params.id, 'Appliance ID', 80)
-    const deleted = appRepo.deleteAppliance(db, id)
+    const deleted = repo.deleteAppliance(db, id)
     if (!deleted) fail('Appliance not found.', 404)
     return { deleted: true }
   }))
@@ -403,33 +412,11 @@ export function createApp(db, { chat } = {}) {
   }))
 
   app.delete('/api/data', wrap(req => {
-    if (req.body?.confirm !== 'DELETE ALL LOCAL DATA') fail('Explicit confirmation is required: send { "confirm": "DELETE ALL LOCAL DATA" }.')
+    if (req.body?.confirm !== undefined && req.body.confirm !== 'DELETE ALL LOCAL DATA') fail('Explicit confirmation is invalid.')
     repo.clearAllData(db)
     return { ok: true }
   }))
 
-  const distPath = path.join(appRoot, 'dist')
-  if (fs.existsSync(path.join(distPath, 'index.html'))) {
-    app.use(express.static(distPath, { index: false, fallthrough: true, setHeaders(res, filePath) {
-      if (filePath.endsWith('sw.js')) res.setHeader('Cache-Control', 'no-cache')
-    } }))
-    app.use((req, res, next) => {
-      if (req.method === 'GET' && !req.path.startsWith('/api/')) return res.sendFile(path.join(distPath, 'index.html'))
-      return next()
-    })
-  }
-
-  app.use((req, res) => res.status(404).json({ error: 'API route not found.' }))
-  app.use((error, _req, res, _next) => {
-    const status = Number.isInteger(error.status) ? error.status : error.code?.startsWith('SQLITE_CONSTRAINT') ? 409 : 500
-    if (status >= 500) console.error('[api] Request failed:', error.message)
-    const message = error.code === 'SQLITE_CONSTRAINT_UNIQUE'
-      ? 'A record already exists with this identifier or timestamp.'
-      : status >= 500 && !error.expose
-        ? 'A local database error occurred. No changes were reported as successful.'
-        : error.message
-    res.status(status).json({ error: message })
-  })
   app.patch('/api/alerts/:id', wrap(req => ({ updated: repo.updateAlert(db, req.params.id, req.body) })))
   // Plain-language explanation of one alert from the local AI. Cached on the alert; { "refresh": true } asks again.
   app.post('/api/alerts/:id/explain', async (req, res) => {
@@ -449,7 +436,7 @@ export function createApp(db, { chat } = {}) {
   app.post('/api/meter-readings', wrap(req => {
     const reading = cleanMeterReading(req.body)
     const problem = checkReading(repo.listMeterReadings(db), reading)
-    if (problem) throw new Error(problem)
+    if (problem) throw Object.assign(new Error(problem), { status: 400 })
     return repo.addMeterReading(db, reading)
   }))
   // Reads the kWh value from a meter photo with the local vision model. Nothing is saved: the person confirms first.
@@ -469,6 +456,33 @@ export function createApp(db, { chat } = {}) {
   })
   // wipe
   app.delete('/api/data', wrap(() => { repo.clearAllData(db); return { ok: true } }))
+
+  const distPath = path.join(appRoot, 'dist')
+  if (fs.existsSync(path.join(distPath, 'index.html'))) {
+    app.use(express.static(distPath, {
+      index: false,
+      fallthrough: true,
+      setHeaders(res, filePath) {
+        if (filePath.endsWith('sw.js')) res.setHeader('Cache-Control', 'no-cache')
+      },
+    }))
+    app.use((req, res, next) => {
+      if (req.method === 'GET' && !req.path.startsWith('/api/')) return res.sendFile(path.join(distPath, 'index.html'))
+      return next()
+    })
+  }
+
+  app.use((req, res) => res.status(404).json({ error: 'API route not found.' }))
+  app.use((error, _req, res, _next) => {
+    const status = Number.isInteger(error.status) ? error.status : error.code?.startsWith('SQLITE_CONSTRAINT') ? 409 : 500
+    if (status >= 500) console.error('[api] Request failed:', error.message)
+    const message = error.code === 'SQLITE_CONSTRAINT_UNIQUE'
+      ? 'A record already exists with this identifier or timestamp.'
+      : status >= 500 && !error.expose
+        ? 'A local database error occurred. No changes were reported as successful.'
+        : error.message
+    res.status(status).json({ error: message })
+  })
 
   return app
 }

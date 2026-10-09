@@ -45,9 +45,10 @@ export function resetProfile(db) {
 
 export function listMeterReadings(db) {
   return db.prepare(`
-    SELECT id, reading_kwh AS readingKwh, recorded_at AS recordedAt,
+    SELECT COALESCE(reading_kwh, kwh) AS readingKwh, recorded_at AS recordedAt,
+      COALESCE(external_id, CAST(id AS TEXT)) AS id,
       notes, created_at AS createdAt,
-      reading_kwh - LAG(reading_kwh) OVER (ORDER BY recorded_at) AS usageKwh
+      COALESCE(reading_kwh, kwh) - LAG(COALESCE(reading_kwh, kwh)) OVER (ORDER BY recorded_at) AS usageKwh
     FROM meter_readings ORDER BY recorded_at
   `).all()
 }
@@ -69,12 +70,19 @@ export function createMeterReading(db, { readingKwh, recordedAt, notes }) {
       throw Object.assign(new Error(`Reading must not exceed ${after.readingKwh} kWh, the next meter value.`), { status: 400 })
     }
     const createdAt = now()
-    const result = db.prepare(`
-      INSERT INTO meter_readings (reading_kwh, recorded_at, notes, created_at)
-      VALUES (?, ?, ?, ?)
-    `).run(readingKwh, recordedAt, notes, createdAt)
+    const generatedId = randomUUID()
+    const idColumn = db.pragma('table_info(meter_readings)').find(column => column.name === 'id')
+    const textPrimaryKey = idColumn.type.toUpperCase() !== 'INTEGER' && idColumn.pk === 1
+    const insert = textPrimaryKey
+      ? db.prepare(`INSERT INTO meter_readings (id, external_id, reading_kwh, kwh, recorded_at, notes, source, created_at, is_reset)
+          VALUES (?, ?, ?, ?, ?, ?, 'Manual entry', ?, 0)`)
+      : db.prepare(`INSERT INTO meter_readings (external_id, reading_kwh, kwh, recorded_at, notes, source, created_at, is_reset)
+          VALUES (?, ?, ?, ?, ?, 'Manual entry', ?, 0)`)
+    const result = textPrimaryKey
+      ? insert.run(generatedId, generatedId, readingKwh, readingKwh, recordedAt, notes, createdAt)
+      : insert.run(generatedId, readingKwh, readingKwh, recordedAt, notes, createdAt)
     return {
-      id: Number(result.lastInsertRowid),
+      id: textPrimaryKey ? generatedId : Number(result.lastInsertRowid),
       readingKwh,
       recordedAt,
       notes,

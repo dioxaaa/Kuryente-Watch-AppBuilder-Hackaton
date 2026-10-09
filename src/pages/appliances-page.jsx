@@ -62,36 +62,56 @@ export function AppliancesPage({ appliances, onAdd, onUpdate, onDelete, rate, on
   const totalDaily = shown.reduce((sum, appliance) => sum + (appliance.watts * appliance.hours) / 1000, 0)
 
   async function save(item) {
-    const saved = modal?.id ? await onUpdate(item) : await onAdd(item)
+    const editing = Boolean(modal?.id)
+    const saved = editing ? await onUpdate(item) : await onAdd(item)
     if (!saved) return false
     setModal(undefined)
-    onToast(modal?.id ? 'Appliance updated in your local database.' : 'Appliance saved in your local database.')
+    onToast(editing ? 'Appliance updated in your local database.' : 'Appliance saved in your local database.')
     return true
   }
+
   async function removeAppliance() {
     if (await onDelete(deleteTarget.id)) onToast('Appliance deleted from the local database.')
     setDeleteTarget(null)
-  async function save(item) {
-    const editing = Boolean(modal?.id)
-    const saved = editing ? await onUpdate(item) : await onAdd(item)
-    if (!saved) return // the app already showed why; keep the form open so nothing typed is lost
-    setModal(undefined)
-    onToast(editing ? 'Appliance updated.' : 'Appliance added.')
   }
+
   return (
     <>
       <PageTitle eyebrow="YOUR HOUSEHOLD" title="My appliances" description="Keep a household inventory and estimate energy use from each rating label." action={<button className="button button-primary" onClick={() => setModal(null)}><Plus size={17} /> Add appliance</button>} />
       <div className="demo-banner"><Zap size={16} /><span><strong>Rated-power estimates.</strong> Watts × daily hours. Actual appliance consumption may differ.</span></div>
       <div className="appliance-overview"><div><span>REGISTERED APPLIANCES</span><strong>{appliances.length}</strong></div><i /><div><span>ESTIMATED DAILY USE</span><strong>{totalDaily.toFixed(1)} <small>kWh/day</small></strong></div><i /><div><span>ESTIMATED MONTHLY COST</span><strong>{formatPeso(totalDaily * 30 * rate)} <small>/ month</small></strong></div></div>
       <section className="panel appliances-panel">
-        <div className="appliances-toolbar"><div className="filter-tabs">{categories.map(category => <button key={category} onClick={() => setFilter(category)} className={filter === category ? 'filter-active' : ''}>{category}</button>)}<select className="category-select" aria-label="Filter appliances by category" value={filter} onChange={event => setFilter(event.target.value)}>{categories.map(category => <option key={category}>{category}</option>)}</select></div><label className="search-input"><Search size={16} /><input aria-label="Search appliances" placeholder="Search appliances" value={search} onChange={event => setSearch(event.target.value)} /></label></div>
-        {shown.length ? <div className="appliance-grid">{shown.map(appliance => {
-          const Icon = icons[appliance.category] || Lightbulb
-          const daily = (appliance.watts * appliance.hours) / 1000
-          return <article className="appliance-card" key={appliance.id}><div className="appliance-card-top"><span className={`appliance-icon appliance-${appliance.category.toLowerCase().replaceAll(' ', '-')}`}><Icon size={19} /></span><span className={`badge ${appliance.isSample ? 'badge-demo' : 'badge-success'}`}>{appliance.isSample ? 'SAMPLE' : 'LOCAL'}</span><div className="card-menu"><button className="icon-button" onClick={() => setModal(appliance)} aria-label={`Edit ${appliance.name}`}><Pencil size={15} /></button><button className="icon-button" onClick={() => setDeleteTarget(appliance)} aria-label={`Delete ${appliance.name}`}><Trash2 size={15} /></button></div></div><span className="appliance-category">{appliance.category}</span><h3>{appliance.name}</h3><p>{appliance.brand || (appliance.isSample ? 'Sample appliance' : 'No brand entered')}{appliance.model ? ` · ${appliance.model}` : ''}</p><div className="appliance-details"><span><Zap size={14} /> {appliance.watts} W rated</span><span>{appliance.hours} hrs/day · {appliance.pattern || 'Daily'}</span></div><div className="appliance-estimate"><div><span>Estimated energy</span><strong>{daily.toFixed(2)} <small>kWh/day</small></strong></div><div className="mini-bars"><i /><i /><i /><i /><i /><i /><i /></div></div></article>
-        })}</div> : <EmptyState title={search || filter !== 'All appliances' ? 'No matching appliances' : 'No appliances yet'} description={search || filter !== 'All appliances' ? 'Try another search or category.' : 'Add an appliance to start estimating household energy use.'} action={<button className="button button-primary" onClick={() => setModal(null)}><Plus size={16} /> Add appliance</button>} />}
-          return <article className="appliance-card" key={appliance.id}><div className="appliance-card-top"><span className={`appliance-icon appliance-${appliance.category.toLowerCase().replaceAll(' ', '-')}`}><Icon size={19} /></span>{appliance.sample && <span className="badge badge-demo">DEMO</span>}<div className="card-menu"><button className="icon-button" onClick={() => setModal(appliance)} aria-label={`Edit ${appliance.name}`}><Pencil size={15} /></button><button className="icon-button" onClick={async () => { if (await onDelete(appliance.id)) onToast('Appliance removed.') }} aria-label={`Delete ${appliance.name}`}><Trash2 size={15} /></button></div></div><span className="appliance-category">{appliance.category}</span><h3>{appliance.name}</h3><p>{appliance.brand || (appliance.sample ? 'Sample appliance' : 'No brand listed')}{appliance.model ? ` · ${appliance.model}` : ''}</p><div className="appliance-details"><span><Zap size={14} /> {appliance.watts} W rated</span><span>{appliance.hours} hrs/day · {appliance.pattern || 'Daily'}</span></div><div className="appliance-estimate"><div><span>Estimated energy</span><strong>{daily.toFixed(2)} <small>kWh/day</small></strong></div><div className="mini-bars"><i /><i /><i /><i /><i /><i /><i /></div></div></article>
-        })}</div> : <EmptyState title={search || filter !== 'All appliances' ? 'No matching appliances' : 'No appliances yet'} description={search || filter !== 'All appliances' ? 'Try a different search or category.' : 'Add an appliance to start estimating household energy use.'} action={<button className="button button-primary" onClick={() => setModal(null)}><Plus size={16} /> Add appliance</button>} />}
+        <div className="appliances-toolbar">
+          <div className="filter-tabs" role="group" aria-label="Filter by appliance category">
+            {categories.map(category => <button key={category} onClick={() => setFilter(category)} className={filter === category ? 'filter-active' : ''} aria-pressed={filter === category}>{category}</button>)}
+          </div>
+          <label className="search-input"><Search size={16} /><input aria-label="Search appliances" placeholder="Search appliances" value={search} onChange={event => setSearch(event.target.value)} /></label>
+        </div>
+        {shown.length ? (
+          <div className="appliance-grid">
+            {shown.map(appliance => {
+              const Icon = icons[appliance.category] || Lightbulb
+              const daily = appliance.watts * appliance.hours / 1000
+              return (
+                <article className="appliance-card" key={appliance.id}>
+                  <div className="appliance-card-top">
+                    <span className={`appliance-icon appliance-${appliance.category.toLowerCase().replaceAll(' ', '-')}`}><Icon size={19} /></span>
+                    <span className={`badge ${appliance.isSample ? 'badge-demo' : 'badge-success'}`}>{appliance.isSample ? 'SAMPLE' : 'LOCAL'}</span>
+                    <div className="card-menu">
+                      <button className="icon-button" onClick={() => setModal(appliance)} aria-label={`Edit ${appliance.name}`}><Pencil size={15} /></button>
+                      <button className="icon-button" onClick={() => setDeleteTarget(appliance)} aria-label={`Delete ${appliance.name}`}><Trash2 size={15} /></button>
+                    </div>
+                  </div>
+                  <span className="appliance-category">{appliance.category}</span>
+                  <h3>{appliance.name}</h3>
+                  <p>{appliance.brand || (appliance.isSample ? 'Sample appliance' : 'No brand entered')}{appliance.model ? ` · ${appliance.model}` : ''}</p>
+                  <div className="appliance-details"><span><Zap size={14} /> {appliance.watts} W rated</span><span>{appliance.hours} hrs/day · {appliance.pattern || 'Daily'}</span></div>
+                  <div className="appliance-estimate"><div><span>Estimated energy</span><strong>{daily.toFixed(2)} <small>kWh/day</small></strong></div><div className="mini-bars"><i /><i /><i /><i /><i /><i /><i /></div></div>
+                </article>
+              )
+            })}
+          </div>
+        ) : <EmptyState title={search || filter !== 'All appliances' ? 'No matching appliances' : 'No appliances yet'} description={search || filter !== 'All appliances' ? 'Try another search or category.' : 'Add an appliance to start estimating household energy use.'} action={<button className="button button-primary" onClick={() => setModal(null)}><Plus size={16} /> Add appliance</button>} />}
       </section>
       {modal !== undefined && <ApplianceModal appliance={modal || undefined} onClose={() => setModal(undefined)} onSave={save} />}
       {deleteTarget && <ConfirmModal title={`Delete ${deleteTarget.name}?`} description="This appliance profile will be removed from the local database. This action cannot be undone." confirmLabel="Delete appliance" danger onConfirm={removeAppliance} onCancel={() => setDeleteTarget(null)} />}

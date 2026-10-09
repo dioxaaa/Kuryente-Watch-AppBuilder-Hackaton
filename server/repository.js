@@ -119,16 +119,29 @@ export function updateAppliance(db, id, a) {
 export const deleteAppliance = (db, id) => db.prepare('DELETE FROM appliances WHERE id = ?').run(id).changes > 0
 
 // ---------- household meter readings (what the user types in from the meter) ----------
-const rowToMeterReading = r => ({ id: r.id, kwh: r.kwh, date: r.recorded_at, source: r.source, reset: !!r.is_reset })
+const rowToMeterReading = r => ({
+  id: r.external_id ?? String(r.id),
+  kwh: r.kwh ?? r.reading_kwh,
+  date: r.recorded_at,
+  source: r.source,
+  reset: !!r.is_reset,
+})
 export const listMeterReadings = db =>
   db.prepare('SELECT * FROM meter_readings ORDER BY recorded_at, rowid').all().map(rowToMeterReading)
 export function addMeterReading(db, { id = randomUUID(), kwh, date, source = 'Manual entry', reset = false }) {
-  // INSERT OR IGNORE keeps a retried one-time import from creating duplicates
-  db.prepare('INSERT OR IGNORE INTO meter_readings (id, kwh, recorded_at, source, created_at, is_reset) VALUES (?,?,?,?,?,?)')
-    .run(id, kwh, date, source, now(), reset ? 1 : 0)
-  return rowToMeterReading(db.prepare('SELECT * FROM meter_readings WHERE id = ?').get(id))
+  const idColumn = db.pragma('table_info(meter_readings)').find(column => column.name === 'id')
+  const textPrimaryKey = idColumn.type.toUpperCase() !== 'INTEGER' && idColumn.pk === 1
+  const insert = textPrimaryKey
+    ? db.prepare(`INSERT OR IGNORE INTO meter_readings (id, external_id, reading_kwh, kwh, recorded_at, source, created_at, is_reset)
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?)`)
+    : db.prepare(`INSERT OR IGNORE INTO meter_readings (external_id, reading_kwh, kwh, recorded_at, source, created_at, is_reset)
+        VALUES (?, ?, ?, ?, ?, ?, ?)`)
+  const timestamp = now()
+  if (textPrimaryKey) insert.run(id, id, kwh, kwh, date, source, timestamp, reset ? 1 : 0)
+  else insert.run(id, kwh, kwh, date, source, timestamp, reset ? 1 : 0)
+  return rowToMeterReading(db.prepare('SELECT * FROM meter_readings WHERE external_id = ?').get(id))
 }
-export const deleteMeterReading = (db, id) => db.prepare('DELETE FROM meter_readings WHERE id = ?').run(id).changes > 0
+export const deleteMeterReading = (db, id) => db.prepare('DELETE FROM meter_readings WHERE external_id = ? OR CAST(id AS TEXT) = ?').run(id, id).changes > 0
 
 // ---------- settings ----------
 export const setSetting = (db, key, value) =>
@@ -145,5 +158,4 @@ export function clearAllData(db) {
       db.exec(`DELETE FROM ${table}`)
     }
   })()
-  db.transaction(() => { for (const t of ['alerts', 'baselines', 'readings', 'devices', 'appliances', 'meter_readings', 'settings']) db.exec(`DELETE FROM ${t}`) })()
 }
