@@ -70,7 +70,8 @@ export async function callOllama(messages, { temperature = 0.4, model = OLLAMA_M
   return { reply, model }
 }
 
-export async function askAssistant({ question, history, context } = {}) {
+// `chat` is injectable so tests do not need a running Ollama.
+export async function askAssistant({ question, history, context } = {}, { chat = callOllama } = {}) {
   const text = clip(question, 500).trim()
   if (!text) throw httpError(400, 'Please type a question.')
 
@@ -81,5 +82,5 @@ export async function askAssistant({ question, history, context } = {}) {
 
   const messages = [{ role: 'system', content: buildSystemPrompt(context) }, ...past, { role: 'user', content: text }]
 
-  return callOllama(messages)
+  return chat(messages)
 }

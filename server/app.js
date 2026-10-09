@@ -5,7 +5,7 @@ import { fileURLToPath } from 'node:url'
 import * as appRepo from './app-repository.js'
 import * as repo from './repository.js'
 import { trainDevice, scanDevice, scanAllDevices, deviceChart } from './service.js'
-import { askAssistant } from './assistant.js'
+import { askAssistant, callOllama } from './assistant.js'
 import { explainAlert } from './alert-explainer.js'
 import { readMeterPhoto } from './meter-ocr.js'
 import { cleanAppliance } from './appliances.js'
@@ -449,10 +449,40 @@ export function createApp(db, {
   // settings
   app.get('/api/settings/:key', wrap(req => ({ value: repo.getSetting(db, req.params.key, null) })))
   app.put('/api/settings/:key', wrap(req => { repo.setSetting(db, req.params.key, req.body.value); return { ok: true } }))
-    // AI assistant (local Ollama)
+  // AI assistant (local Ollama)
   app.post('/api/assistant', async (req, res) => {
-    try { res.json(await askAssistant(req.body ?? {})) }
+    try { res.json(await askAssistant(req.body ?? {}, { chat })) }
     catch (err) { res.status(err.status || 500).json({ error: err.message }) }
+  })
+  // Two-sentence saving tip for one appliance from the local AI. Falls back to a fixed tip so the widget never hangs.
+  app.post('/api/ai/recommendation', async (req, res) => {
+    const { applianceName, ratedWatts, hoursPerDay } = req.body ?? {}
+    if (!applianceName || !ratedWatts) return res.status(400).json({ error: 'Missing appliance name or rated watts.' })
+    const name = String(applianceName).slice(0, 100)
+    const watts = Number(ratedWatts)
+    const hours = Number(hoursPerDay) || 0
+    const dailyKwh = ((watts * hours) / 1000).toFixed(2)
+    const prompt = [
+      'You are an energy efficiency assistant for KuryenteWatch.',
+      'Analyze this household appliance:',
+      `- Name: ${name}`,
+      `- Rating: ${watts} Watts`,
+      `- Usage: ${hours} hours/day`,
+      `- Estimated Consumption: ${dailyKwh} kWh/day`,
+      '',
+      'Give a concise, practical 2-sentence tip on how the household can save energy for this device.',
+    ].join('\n')
+    try {
+      const { reply } = await (chat ?? callOllama)([{ role: 'user', content: prompt }], { temperature: 0.4 })
+      res.json({ success: true, appliance: name, insight: reply.trim() })
+    } catch (err) {
+      console.error('Ollama Local AI Error:', err.message)
+      res.json({
+        success: true,
+        appliance: name,
+        insight: `For your ${name}, consider unplugging it when idle to prevent phantom energy draw and run it during off-peak hours to save up to 15% on your bill.`,
+      })
+    }
   })
   // wipe
   app.delete('/api/data', wrap(() => { repo.clearAllData(db); return { ok: true } }))
