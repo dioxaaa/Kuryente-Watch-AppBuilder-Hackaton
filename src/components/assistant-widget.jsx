@@ -20,7 +20,7 @@ function buildContext({ readings, appliances, alerts, rate, monthKwh }) {
       hoursPerDay: a.hours,
       monthlyKwh: Math.round(estimateDailyKwh(a) * 30 * 10) / 10,
     })),
-    alerts: alerts.slice(0, 5).map(a => ({ title: a.title, context: a.context })),
+    alerts: alerts.slice(0, 5).map(a => ({ title: a.title, context: a.context, detail: a.description })),
   }
 }
 

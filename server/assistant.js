@@ -3,7 +3,7 @@ const OLLAMA_URL = process.env.OLLAMA_URL || 'http://127.0.0.1:11434'
 const OLLAMA_MODEL = process.env.OLLAMA_MODEL || 'llama3.2'
 const TIMEOUT_MS = Number(process.env.OLLAMA_TIMEOUT_MS) || 60000
 
-const httpError = (status, message) => Object.assign(new Error(message), { status })
+export const httpError = (status, message) => Object.assign(new Error(message), { status })
 const clip = (value, max) => String(value ?? '').slice(0, max)
 const num = value => (Number.isFinite(Number(value)) ? Number(value) : null)
 
@@ -14,7 +14,7 @@ function buildSystemPrompt(ctx = {}) {
     'Explain electricity usage in simple, friendly language. Keep answers short (3-5 sentences).',
     'Reply in the same language the user writes in (English or Taglish).',
     'Only use the household data below. If the data is not enough, say so instead of guessing.',
-    'Appliance numbers are estimates from rated watts, and any alerts listed are sample alerts, so never claim to diagnose faults.',
+    'Appliance numbers are estimates from rated watts. Alerts listed come from a usage detector that only sees power readings, so never claim to diagnose faults; suggest what to check instead.',
     '',
     'Household data:',
   ]
@@ -32,28 +32,19 @@ function buildSystemPrompt(ctx = {}) {
   }
   if (Array.isArray(ctx.alerts) && ctx.alerts.length) {
     lines.push('- Current alerts:')
-    for (const a of ctx.alerts.slice(0, 5)) lines.push(`  * ${clip(a.title, 80)}: ${clip(a.context, 120)}`)
+    for (const a of ctx.alerts.slice(0, 5)) lines.push(`  * ${clip(a.title, 80)} (${clip(a.context, 120)})${a.detail ? `: ${clip(a.detail, 240)}` : ''}`)
   }
   return lines.join('\n')
 }
 
-export async function askAssistant({ question, history, context } = {}) {
-  const text = clip(question, 500).trim()
-  if (!text) throw httpError(400, 'Please type a question.')
-
-  const past = (Array.isArray(history) ? history : [])
-    .filter(m => (m.role === 'user' || m.role === 'assistant') && typeof m.content === 'string')
-    .slice(-6)
-    .map(m => ({ role: m.role, content: clip(m.content, 1000) }))
-
-  const messages = [{ role: 'system', content: buildSystemPrompt(context) }, ...past, { role: 'user', content: text }]
-
+// Sends chat messages to the local Ollama server and returns { reply, model }.
+export async function callOllama(messages, { temperature = 0.4 } = {}) {
   let res
   try {
     res = await fetch(`${OLLAMA_URL}/api/chat`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ model: OLLAMA_MODEL, messages, stream: false, options: { temperature: 0.4 } }),
+      body: JSON.stringify({ model: OLLAMA_MODEL, messages, stream: false, options: { temperature } }),
       signal: AbortSignal.timeout(TIMEOUT_MS),
     })
   } catch {
@@ -67,4 +58,18 @@ export async function askAssistant({ question, history, context } = {}) {
   const reply = data?.message?.content?.trim()
   if (!reply) throw httpError(502, 'The AI assistant returned an empty answer. Please try again.')
   return { reply, model: OLLAMA_MODEL }
+}
+
+export async function askAssistant({ question, history, context } = {}) {
+  const text = clip(question, 500).trim()
+  if (!text) throw httpError(400, 'Please type a question.')
+
+  const past = (Array.isArray(history) ? history : [])
+    .filter(m => (m.role === 'user' || m.role === 'assistant') && typeof m.content === 'string')
+    .slice(-6)
+    .map(m => ({ role: m.role, content: clip(m.content, 1000) }))
+
+  const messages = [{ role: 'system', content: buildSystemPrompt(context) }, ...past, { role: 'user', content: text }]
+
+  return callOllama(messages)
 }

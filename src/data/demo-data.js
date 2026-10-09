@@ -20,36 +20,6 @@ export const demoAppliances = [
   { id: 'a-4', name: 'Rice cooker', category: 'Rice cooker', watts: 600, hours: 1.5, pattern: 'Daily' },
 ]
 
-export const demoAlerts = [
-  {
-    id: 'alert-1',
-    title: 'Weekly usage is higher than usual',
-    context: 'Household · Demo alert',
-    description: 'Sample usage is about 18% above the previous week. Review readings and routines; this is not a diagnosis.',
-    severity: 'warning',
-    createdAt: day(-1, 16),
-    read: false,
-  },
-  {
-    id: 'alert-2',
-    title: 'Air conditioner estimate stands out',
-    context: 'Bedroom air conditioner · Demo alert',
-    description: 'Its rated-power estimate is the largest in this sample. Actual consumption can differ from the rating label.',
-    severity: 'high',
-    createdAt: day(-3, 10),
-    read: false,
-  },
-  {
-    id: 'alert-3',
-    title: 'Time for a meter reading',
-    context: 'Household · Demo reminder',
-    description: 'A new reading can help compare your household usage over time.',
-    severity: 'info',
-    createdAt: day(-5, 11),
-    read: true,
-  },
-]
-
 export const weeklyUsage = [
   { day: 'Mon', usage: 8.1 },
   { day: 'Tue', usage: 6.9 },

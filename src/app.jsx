@@ -3,7 +3,8 @@ import { api } from './api'
 import { DEFAULT_SETTINGS } from './utils/settings'
 import { AppHeader } from './components/app-header'
 import { AppSidebar } from './components/app-sidebar'
-import { demoAlerts, demoAppliances } from './data/demo-data'
+import { demoAppliances } from './data/demo-data'
+import { toViewAlert } from './utils/alerts'
 import { AlertsPage } from './pages/alerts-page'
 import { AdminPage } from './pages/admin-page'
 import { AppliancesPage } from './pages/appliances-page'
@@ -29,7 +30,6 @@ function usePersistentState(key, initial, revive = value => value) {
   return [value, setValue]
 }
 const asList = value => { if (!Array.isArray(value)) throw new Error('expected a list'); return value }
-const reviveAlerts = value => asList(value).map(item => ({ ...item, createdAt: new Date(item.createdAt) }))
 const withDates = list => list.map(item => ({ ...item, date: new Date(item.date) }))
 const readOldBrowserCopy = key => { try { const raw = window.localStorage.getItem(`kuryentewatch:v1:${key}`); return raw === null ? null : JSON.parse(raw) } catch { return null } }
 const forgetOldBrowserCopy = key => { try { window.localStorage.removeItem(`kuryentewatch:v1:${key}`) } catch { /* nothing to clean up */ } }
@@ -54,7 +54,8 @@ export default function App() {
   const [appliances, setAppliances] = usePersistentState('appliances', demoAppliances, asList) // last copy from the database
   const [serverStatus, setServerStatus] = useState('connecting') // connecting | online | offline
   const savedBeforeDatabase = useRef(appliances)
-  const [alerts, setAlerts] = usePersistentState('alerts', demoAlerts, reviveAlerts)
+  const [alerts, setAlerts] = useState([]) // detector alerts, loaded from the database
+  const [alertsLoaded, setAlertsLoaded] = useState(false)
   const [settings, setSettingsState] = useState(DEFAULT_SETTINGS) // loaded from the database
   const [toast, setToast] = useState('')
   const unreadCount = alerts.filter(alert => !alert.read && !alert.dismissed).length
@@ -114,6 +115,28 @@ export default function App() {
     return () => { cancelled = true }
   }, [])
 
+  // Alerts come from the detector via /api/alerts. Reload when the Alerts page opens so new scans show up.
+  const loadAlerts = async () => {
+    try {
+      const [list, devices] = await Promise.all([api.get('/alerts'), api.get('/devices')])
+      setAlerts(list.map(item => toViewAlert(item, devices)))
+    } catch { /* the footer already says when the server is off */ }
+    finally { setAlertsLoaded(true) }
+  }
+  useEffect(() => { forgetOldBrowserCopy('alerts') }, []) // sample alerts used to be saved in this browser
+  useEffect(() => { loadAlerts() }, [activePage === 'alerts'])
+
+  const updateAlert = async (id, changes) => {
+    setAlerts(items => items.map(item => item.id === id ? { ...item, ...changes } : item))
+    try { await api.patch(`/alerts/${encodeURIComponent(id)}`, changes) }
+    catch (err) { toastMessage(err.message); loadAlerts() }
+  }
+  // Asks the local AI to explain one alert. Throws the server's message so the card can show it.
+  const explainAlert = async (id, refresh = false) => {
+    const { explanation, model } = await api.post(`/alerts/${encodeURIComponent(id)}/explain`, { refresh })
+    setAlerts(items => items.map(item => item.id === id ? { ...item, aiExplanation: explanation, aiModel: model } : item))
+  }
+
   const addReading = async reading => {
     try {
       const saved = await api.post('/meter-readings', { kwh: reading.kwh, date: reading.date.toISOString(), source: reading.source, reset: reading.reset === true })
@@ -155,7 +178,7 @@ export default function App() {
       case 'history':
         return <HistoryPage readings={readings} rate={Number(settings.rate) || 0} onToast={toastMessage} />
       case 'alerts':
-        return <AlertsPage alerts={alerts.filter(alert => !alert.dismissed)} onUpdate={(id, changes) => setAlerts(items => items.map(item => item.id === id ? { ...item, ...changes } : item))} onToast={toastMessage} />
+        return <AlertsPage alerts={alerts.filter(alert => !alert.dismissed)} loaded={alertsLoaded} offline={serverStatus === 'offline'} onUpdate={updateAlert} onExplain={explainAlert} onToast={toastMessage} />
       case 'settings':
         return <SettingsPage settings={settings} onSave={saveSettings} onToast={toastMessage} />
       case 'admin':
@@ -163,7 +186,7 @@ export default function App() {
       default:
         return <DashboardPage readings={readings} alerts={alerts.filter(alert => !alert.dismissed)} appliances={appliances} rate={Number(settings.rate) || 0} household={settings.household} onNavigate={navigate} />
     }
-  }, [activePage, readings, appliances, alerts, settings])
+  }, [activePage, readings, appliances, alerts, alertsLoaded, serverStatus, settings])
 
   return (
     <div className="app-shell">

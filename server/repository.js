@@ -47,7 +47,7 @@ export const getBaseline = (db, device) => {
 // ---------- alerts ----------
 export const alertIdFor = (device, event) => `${device}|${event.type}|${event.start}`
 
-const rowToAlert = r => ({ ...JSON.parse(r.data), id: r.id, device: r.device, createdAt: r.created_at, read: !!r.read, dismissed: !!r.dismissed })
+const rowToAlert = r => ({ ...JSON.parse(r.data), id: r.id, device: r.device, createdAt: r.created_at, read: !!r.read, dismissed: !!r.dismissed, aiExplanation: r.ai_explanation ?? null, aiModel: r.ai_model ?? null })
 
 // Saves detector events as alerts. Re-saving the same event keeps its read/dismissed state.
 // Returns how many were NEW.
@@ -55,12 +55,16 @@ export function saveAlerts(db, device, events) {
   ensureDevice(db, device)
   const exists = db.prepare('SELECT 1 FROM alerts WHERE id = ?')
   const insert = db.prepare('INSERT INTO alerts (id, device, type, severity, start, data, created_at) VALUES (?,?,?,?,?,?,?)')
-  const update = db.prepare('UPDATE alerts SET severity=?, data=? WHERE id=?')
+  // A re-scan can change an event (for example it ran longer), so an AI explanation is only kept when the event is unchanged.
+  const update = db.prepare(`UPDATE alerts SET severity=?,
+    ai_explanation = CASE WHEN data = ? THEN ai_explanation ELSE NULL END,
+    ai_model = CASE WHEN data = ? THEN ai_model ELSE NULL END,
+    data=? WHERE id=?`)
   return db.transaction(evs => {
     let added = 0
     for (const e of evs) {
       const id = alertIdFor(device, e)
-      if (exists.get(id)) update.run(e.severity ?? null, JSON.stringify(e), id)
+      if (exists.get(id)) { const json = JSON.stringify(e); update.run(e.severity ?? null, json, json, json, id) }
       else { insert.run(id, device, e.type, e.severity ?? null, e.start, JSON.stringify(e), now()); added++ }
     }
     return added
@@ -71,6 +75,12 @@ export function listAlerts(db, { device, includeDismissed = false } = {}) {
     .all(device ?? null, device ?? null, includeDismissed ? 1 : 0)
   return rows.map(rowToAlert)
 }
+export const getAlert = (db, id) => {
+  const row = db.prepare('SELECT * FROM alerts WHERE id = ?').get(id)
+  return row ? rowToAlert(row) : undefined
+}
+export const saveAlertExplanation = (db, id, text, model) =>
+  db.prepare('UPDATE alerts SET ai_explanation = ?, ai_model = ? WHERE id = ?').run(text, model ?? null, id).changes > 0
 export function updateAlert(db, id, { read, dismissed }) {
   const sets = [], args = []
   if (read !== undefined) { sets.push('read = ?'); args.push(read ? 1 : 0) }

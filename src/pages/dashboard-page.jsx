@@ -55,7 +55,7 @@ export function DashboardPage({ readings, alerts, appliances, rate, household, o
       </div>
       <div className="dashboard-grid lower-grid">
         <section className="panel alerts-preview">
-          <div className="panel-heading"><div><h2>Needs your attention</h2><p>Sample alerts · no appliance diagnosis</p></div><button className="text-button" onClick={() => onNavigate('alerts')}>View all <ArrowRight size={15} /></button></div>
+          <div className="panel-heading"><div><h2>Needs your attention</h2><p>From your device readings · not a diagnosis</p></div><button className="text-button" onClick={() => onNavigate('alerts')}>View all <ArrowRight size={15} /></button></div>
           {freshAlerts.length ? freshAlerts.map(alert => <div className="preview-alert" key={alert.id}><span className={`severity-marker severity-${alert.severity}`}><Zap size={16} /></span><span><strong>{alert.title}</strong><small>{alert.context}</small></span><span className="badge badge-warning">NEW</span></div>) : <p className="muted-copy">You’re all caught up.</p>}
         </section>
         <section className="panel insight-panel"><div className="insight-icon"><Sparkles size={19} /></div><div><span className="eyebrow">A QUICK INSIGHT</span>{biggest ? <><h2>{biggest.name} is your biggest estimated energy user</h2><p>About {(estimateDailyKwh(biggest) * 30).toFixed(0)} kWh a month, worked out from its rated watts × hours of use. Actual usage may vary with appliance behavior and conditions.</p></> : <><h2>Add your appliances</h2><p>Add what you use at home and we will show which one costs the most.</p></>}<button className="text-button" onClick={() => onNavigate('appliances')}>Explore appliances <ArrowRight size={15} /></button></div></section>

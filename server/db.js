@@ -31,7 +31,9 @@ CREATE TABLE IF NOT EXISTS alerts (
   data       TEXT NOT NULL,          -- full event JSON from the detector
   created_at TEXT NOT NULL,
   read       INTEGER NOT NULL DEFAULT 0,
-  dismissed  INTEGER NOT NULL DEFAULT 0
+  dismissed  INTEGER NOT NULL DEFAULT 0,
+  ai_explanation TEXT,               -- cached plain-language explanation from the local AI
+  ai_model       TEXT
 );
 CREATE INDEX IF NOT EXISTS idx_alerts_device_start ON alerts(device, start);
 CREATE TABLE IF NOT EXISTS appliances (
@@ -71,5 +73,9 @@ export function openDb(file = process.env.KURYENTE_DB || 'data/kuryentewatch.db'
   db.exec(SCHEMA)
   // Databases created before the replaced-meter option do not have this column yet.
   if (!db.prepare('PRAGMA table_info(meter_readings)').all().some(c => c.name === 'is_reset')) db.exec('ALTER TABLE meter_readings ADD COLUMN is_reset INTEGER NOT NULL DEFAULT 0')
+  // Databases created before AI explanations do not have these columns yet.
+  const alertCols = db.prepare('PRAGMA table_info(alerts)').all().map(c => c.name)
+  if (!alertCols.includes('ai_explanation')) db.exec('ALTER TABLE alerts ADD COLUMN ai_explanation TEXT')
+  if (!alertCols.includes('ai_model')) db.exec('ALTER TABLE alerts ADD COLUMN ai_model TEXT')
   return db
 }
