@@ -3,6 +3,7 @@ import { PageTitle } from '../components/page-title'
 import { StatCard } from '../components/stat-card'
 import { UsageChart } from '../components/usage-chart'
 import { formatDate, formatPeso } from '../utils/energy-utils'
+import { AssistantWidget } from '../components/assistant-widget'
 
 export function DashboardPage({ readings, alerts, appliances, rate, onNavigate }) {
   const current = readings[readings.length - 1]
@@ -50,6 +51,8 @@ export function DashboardPage({ readings, alerts, appliances, rate, onNavigate }
         </section>
         <section className="panel insight-panel"><div className="insight-icon"><Sparkles size={19} /></div><div><span className="eyebrow">A QUICK INSIGHT · DEMO</span><h2>Your AC is your biggest energy user</h2><p>Based on the sample rated-watt estimates. Actual usage may vary with appliance behavior and conditions.</p><button className="text-button" onClick={() => onNavigate('appliances')}>Explore appliances <ArrowRight size={15} /></button></div></section>
       </div>
+            <AssistantWidget readings={readings} appliances={appliances} alerts={alerts} rate={rate} monthKwh={estimatedMonthKwh} />
     </>
+
   )
 }

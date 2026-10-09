@@ -2,7 +2,7 @@
 import express from 'express'
 import * as repo from './repository.js'
 import { trainDevice, scanDevice } from './service.js'
-
+import { askAssistant } from './assistant.js'
 export function createApp(db) {
   const app = express()
   app.use(express.json({ limit: '50mb' })) // large CSV-sized imports
@@ -46,7 +46,11 @@ export function createApp(db) {
   // settings
   app.get('/api/settings/:key', wrap(req => ({ value: repo.getSetting(db, req.params.key, null) })))
   app.put('/api/settings/:key', wrap(req => { repo.setSetting(db, req.params.key, req.body.value); return { ok: true } }))
-
+    // AI assistant (local Ollama)
+  app.post('/api/assistant', async (req, res) => {
+    try { res.json(await askAssistant(req.body ?? {})) }
+    catch (err) { res.status(err.status || 500).json({ error: err.message }) }
+  })
   // wipe
   app.delete('/api/data', wrap(() => { repo.clearAllData(db); return { ok: true } }))
 
