@@ -8,7 +8,7 @@ export function AdminPage({ onNavigate }) {
     ['Settings, saved in the local database', true],
     ['Usage charts worked out from your readings', true],
     ['Local AI energy assistant (needs Ollama running)', true],
-    ['Alerts from the anomaly detector', false],
+    ['Alerts from the anomaly detector, explained by the local AI (needs Ollama running)', true],
     ['Meter reading from a photo (OCR)', false],
     ['Accounts and syncing between devices', false],
   ]
@@ -20,7 +20,7 @@ export function AdminPage({ onNavigate }) {
         <section className="panel about-hero"><div className="about-brand-icon"><span className="brand-mark"><span>ϟ</span></span></div><span className="eyebrow">KURYENTEWATCH · PROTOTYPE</span><h2>The Local Energy Detective</h2><p>Designed to help Filipino households understand their electricity habits with clarity, useful estimates, and privacy in mind.</p><button className="button button-primary" onClick={() => onNavigate('meter')}><Eye size={16} /> Explore meter flow</button></section>
         <section className="panel about-status"><div className="panel-heading"><div><h2>Prototype status</h2><p>What works today</p></div><span className="badge badge-success"><i /> PROTOTYPE</span></div>{items.map(([label, done]) => <div className="status-row" key={label}><span className={`status-icon ${done ? 'status-ready' : 'status-off'}`}>{done ? <Check size={14} /> : <X size={14} />}</span><span>{label}</span><small>{done ? 'Working' : 'Not connected yet'}</small></div>)}</section>
       </div>
-      <section className="panel principles-panel"><div className="panel-heading"><div><h2>Principles behind the experience</h2><p>Designed to make energy data approachable, without overstating what the product knows.</p></div></div><div className="principles-grid"><div><ShieldCheck size={19} /><strong>Privacy by design</strong><span>Data is stored in a database on this computer. Nothing is uploaded.</span></div><div><Sparkles size={19} /><strong>Honest estimates</strong><span>Estimates and sample data are clearly labeled.</span></div><div><Code2 size={19} /><strong>Built for iteration</strong><span>OCR and anomaly interfaces can be explored separately later.</span></div></div></section>
+      <section className="panel principles-panel"><div className="panel-heading"><div><h2>Principles behind the experience</h2><p>Designed to make energy data approachable, without overstating what the product knows.</p></div></div><div className="principles-grid"><div><ShieldCheck size={19} /><strong>Privacy by design</strong><span>Data is stored in a database on this computer. Nothing is uploaded.</span></div><div><Sparkles size={19} /><strong>Honest estimates</strong><span>Estimates and sample data are clearly labeled.</span></div><div><Code2 size={19} /><strong>Built for iteration</strong><span>OCR and live device scanning can be explored separately later.</span></div></div></section>
     </>
   )
 }
