@@ -38,26 +38,26 @@ function buildSystemPrompt(ctx = {}) {
 }
 
 // Sends chat messages to the local Ollama server and returns { reply, model }.
-export async function callOllama(messages, { temperature = 0.4 } = {}) {
+export async function callOllama(messages, { temperature = 0.4, model = OLLAMA_MODEL, format, timeoutMs = TIMEOUT_MS } = {}) {
   let res
   try {
     res = await fetch(`${OLLAMA_URL}/api/chat`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ model: OLLAMA_MODEL, messages, stream: false, options: { temperature } }),
-      signal: AbortSignal.timeout(TIMEOUT_MS),
+      body: JSON.stringify({ model, messages, stream: false, ...(format ? { format } : {}), options: { temperature } }),
+      signal: AbortSignal.timeout(timeoutMs),
     })
   } catch {
     throw httpError(503, 'The AI assistant is offline. Start Ollama (run "ollama serve") and try again.')
   }
 
-  if (res.status === 404) throw httpError(503, `The model "${OLLAMA_MODEL}" is not installed. Run: ollama pull ${OLLAMA_MODEL}`)
+  if (res.status === 404) throw httpError(503, `The model "${model}" is not installed. Run: ollama pull ${model}`)
   if (!res.ok) throw httpError(502, 'The AI assistant could not answer right now. Please try again.')
 
   const data = await res.json()
   const reply = data?.message?.content?.trim()
   if (!reply) throw httpError(502, 'The AI assistant returned an empty answer. Please try again.')
-  return { reply, model: OLLAMA_MODEL }
+  return { reply, model }
 }
 
 export async function askAssistant({ question, history, context } = {}) {

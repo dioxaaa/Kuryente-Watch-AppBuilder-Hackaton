@@ -4,6 +4,7 @@ import * as repo from './repository.js'
 import { trainDevice, scanDevice, scanAllDevices } from './service.js'
 import { askAssistant } from './assistant.js'
 import { explainAlert } from './alert-explainer.js'
+import { readMeterPhoto } from './meter-ocr.js'
 import { cleanAppliance } from './appliances.js'
 import { cleanMeterReading } from './meter-readings.js'
 import { checkReading } from '../src/utils/meter-check.js'
@@ -69,6 +70,11 @@ export function createApp(db, { chat } = {}) {
     if (problem) throw new Error(problem)
     return repo.addMeterReading(db, reading)
   }))
+  // Reads the kWh value from a meter photo with the local vision model. Nothing is saved: the person confirms first.
+  app.post('/api/meter-readings/read-photo', async (req, res) => {
+    try { res.json(await readMeterPhoto(req.body?.image, { chat })) }
+    catch (err) { res.status(err.status || 500).json({ error: err.message }) }
+  })
   app.delete('/api/meter-readings/:id', wrap(req => ({ deleted: repo.deleteMeterReading(db, req.params.id) })))
 
   // settings

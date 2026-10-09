@@ -9,7 +9,7 @@ export function AdminPage({ onNavigate }) {
     ['Usage charts worked out from your readings', true],
     ['Local AI energy assistant (needs Ollama running)', true],
     ['Alerts from the anomaly detector, explained by the local AI (needs Ollama running)', true],
-    ['Meter reading from a photo (OCR)', false],
+    ['Meter reading from a photo, read by a local vision model (needs Ollama)', true],
     ['Accounts and syncing between devices', false],
   ]
   return (
