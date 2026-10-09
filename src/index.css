@@ -1297,3 +1297,16 @@ body { background: var(--bg); letter-spacing: -.005em; }
 [data-theme="dark"] .assistant-connect-ready { border-color: #24452f; background: #13241a; }
 [data-theme="dark"] .assistant-connect-ready .assistant-connect-heading { color: var(--brand); }
 [data-theme="dark"] .assistant-connect-ready > p { color: var(--muted); }
+
+/* Phones: stack form fields, keep the header on one line, and fit the assistant inside the visible screen */
+@media (max-width: 650px) {
+  .main-content { padding-bottom: 96px; }
+  .field-grid { grid-template-columns: minmax(0, 1fr); }
+  .topbar-left, .breadcrumbs { min-width: 0; }
+  .breadcrumbs strong { overflow: hidden; white-space: nowrap; text-overflow: ellipsis; }
+  .assistant { right: 12px; bottom: calc(12px + env(safe-area-inset-bottom)); }
+  .assistant-window { width: calc(100vw - 24px); height: min(520px, calc(100dvh - 100px)); }
+}
+@media (max-width: 480px) {
+  .topbar-actions > .demo-mode { display: none; }
+}
