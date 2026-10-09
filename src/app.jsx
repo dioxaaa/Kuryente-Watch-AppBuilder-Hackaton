@@ -207,36 +207,36 @@ export default function App() {
       reportFailure(error)
       return false
     }
+  }
 
-    async function refreshAlerts() {
-      const [savedAlerts, devices] = await Promise.all([api('/alerts'), api('/devices')])
-      setAlerts(savedAlerts.map(alert => toViewAlert(alert, devices)))
-      setAlertsLoaded(true)
-    }
+  async function refreshAlerts() {
+    const [savedAlerts, devices] = await Promise.all([api('/alerts'), api('/devices')])
+    setAlerts(savedAlerts.map(alert => toViewAlert(alert, devices)))
+    setAlertsLoaded(true)
+  }
 
-    async function scanForAlerts() {
-      try {
-        const result = await api('/scan', { method: 'POST' })
-        await refreshAlerts()
-        showToast(result.scanned === 0
-          ? 'No devices have a learned baseline yet. Add device readings and train a baseline first.'
-          : result.newAlerts > 0
-            ? `Scan finished: ${result.newAlerts} new alert${result.newAlerts === 1 ? '' : 's'} found.`
-            : 'Scan finished: nothing new or unusual.')
-      } catch (error) {
-        reportFailure(error)
-      }
+  async function scanForAlerts() {
+    try {
+      const result = await api('/scan', { method: 'POST' })
+      await refreshAlerts()
+      showToast(result.scanned === 0
+        ? 'No devices have a learned baseline yet. Add device readings and train a baseline first.'
+        : result.newAlerts > 0
+          ? `Scan finished: ${result.newAlerts} new alert${result.newAlerts === 1 ? '' : 's'} found.`
+          : 'Scan finished: nothing new or unusual.')
+    } catch (error) {
+      reportFailure(error)
     }
+  }
 
-    async function explainAlert(id, refresh = false) {
-      const result = await api(`/alerts/${encodeURIComponent(id)}/explain`, {
-        method: 'POST',
-        body: { refresh },
-      })
-      setAlerts(items => items.map(item => item.id === id
-        ? { ...item, aiExplanation: result.explanation, aiModel: result.model }
-        : item))
-    }
+  async function explainAlert(id, refresh = false) {
+    const result = await api(`/alerts/${encodeURIComponent(id)}/explain`, {
+      method: 'POST',
+      body: { refresh },
+    })
+    setAlerts(items => items.map(item => item.id === id
+      ? { ...item, aiExplanation: result.explanation, aiModel: result.model }
+      : item))
   }
 
   async function saveSettings(values) {
