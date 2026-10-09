@@ -3,31 +3,32 @@ import { AlertCircle, Camera, Check, ImagePlus, Info, ScanLine, Trash2, Upload, 
 import { PageTitle } from '../components/page-title'
 import { formatDate } from '../utils/energy-utils'
 
+function localDateTimeValue() {
+  const now = new Date()
+  now.setMinutes(now.getMinutes() - now.getTimezoneOffset())
+  return now.toISOString().slice(0, 16)
+}
+
 export function MeterPage({ readings, rate, onSave, onToast }) {
   const [photo, setPhoto] = useState('')
   const [value, setValue] = useState('')
-  const [recordedAt, setRecordedAt] = useState(() => {
-    const now = new Date()
-    now.setMinutes(now.getMinutes() - now.getTimezoneOffset())
-    return now.toISOString().slice(0, 16)
-  })
+  const [notes, setNotes] = useState('')
+  const [recordedAt, setRecordedAt] = useState(localDateTimeValue)
   const [error, setError] = useState('')
+  const [saving, setSaving] = useState(false)
   const inputRef = useRef(null)
   useEffect(() => () => {
     if (photo) URL.revokeObjectURL(photo)
   }, [photo])
-  const previous = readings[readings.length - 1]
-  const delta = value !== '' && previous ? Number(value) - previous.kwh : null
+  const latest = readings.at(-1)
+  const selectedTime = new Date(recordedAt).getTime()
+  const previous = readings.filter(reading => new Date(reading.recordedAt).getTime() < selectedTime).at(-1)
+  const delta = value !== '' && previous ? Number(value) - previous.readingKwh : null
+
   function selectImage(file) {
     if (!file) return
-    if (!file.type.startsWith('image/')) {
-      setError('Choose an image file, such as JPG, PNG, or HEIC.')
-      return
-    }
-    if (file.size > 10 * 1024 * 1024) {
-      setError('Choose an image smaller than 10 MB.')
-      return
-    }
+    if (!file.type.startsWith('image/')) return setError('Choose an image file, such as JPG or PNG.')
+    if (file.size > 10 * 1024 * 1024) return setError('Choose an image smaller than 10 MB.')
     setError('')
     if (photo) URL.revokeObjectURL(photo)
     setPhoto(URL.createObjectURL(file))
@@ -39,58 +40,62 @@ export function MeterPage({ readings, rate, onSave, onToast }) {
     setPhoto('')
   }
 
-  function saveReading(event) {
+  async function saveReading(event) {
     event.preventDefault()
-    if (!value || !Number.isFinite(Number(value)) || Number(value) <= 0) {
-      setError('Enter a valid meter reading greater than zero.')
-      return
-    }
-    if (previous && Number(value) < previous.kwh) {
-      setError(`This is lower than your previous reading (${previous.kwh.toLocaleString()} kWh). Check the value and try again.`)
-      return
-    }
-    if (!recordedAt || Number.isNaN(new Date(recordedAt).getTime())) {
-      setError('Choose a valid date and time for this reading.')
-      return
-    }
-    onSave({ id: `entry-${Date.now()}`, kwh: Number(value), date: new Date(recordedAt), source: 'Manual entry' })
-    setValue('')
-    removePhoto()
+    const amount = Number(value)
+    if (!value.trim() || !Number.isFinite(amount) || amount <= 0) return setError('Enter a valid meter reading greater than zero.')
+    if (previous && amount < previous.readingKwh) return setError(`This is lower than the previous reading (${previous.readingKwh.toLocaleString()} kWh). Check the value and try again.`)
+    if (!recordedAt || Number.isNaN(new Date(recordedAt).getTime())) return setError('Choose a valid date and time for this reading.')
+    setSaving(true)
     setError('')
-    onToast('Reading added for this demo session.')
+    try {
+      const saved = await onSave({ readingKwh: amount, recordedAt: new Date(recordedAt).toISOString(), notes: notes.trim() })
+      if (saved) {
+        setValue('')
+        setNotes('')
+        removePhoto()
+        setRecordedAt(localDateTimeValue())
+        onToast('Meter reading saved to the local database.')
+      }
+    } catch (failure) {
+      setError(failure.message || 'Could not save this reading.')
+    } finally {
+      setSaving(false)
+    }
   }
 
   return (
     <>
-      <PageTitle eyebrow="HOUSEHOLD MONITORING" title="Scan my meter" description="Add a meter reading with a photo or enter it manually. Photos are only previewed in this session." />
-      <div className="demo-banner"><Info size={16} /><span><strong>Manual entry only.</strong> Automatic meter OCR is not connected in this prototype.</span></div>
+      <PageTitle eyebrow="HOUSEHOLD MONITORING" title="Add a meter reading" description="Record the cumulative kWh value shown on your electricity meter." />
+      <div className="demo-banner"><Info size={16} /><span><strong>Manual entry.</strong> Your photo is previewed only; automatic OCR is not connected.</span></div>
       <div className="meter-layout">
         <section className="panel meter-form-panel">
           <div className="panel-heading"><div><h2>New meter reading</h2><p>Fields marked with <span className="required">*</span> are required</p></div><span className="step-pill"><span>01</span> Reading details</span></div>
           <form onSubmit={saveReading} noValidate>
             <label className="field-label">Meter photo <span className="optional">(optional)</span></label>
             {photo ? <div className="photo-preview"><img src={photo} alt="Selected meter photo preview" /><div className="photo-overlay"><button className="button button-secondary button-small" type="button" onClick={() => inputRef.current?.click()}><Upload size={14} /> Replace photo</button><button className="button button-danger button-small" type="button" onClick={removePhoto}><Trash2 size={14} /> Remove</button></div></div> :
-              <button className="upload-zone" type="button" onClick={() => inputRef.current?.click()}><span className="upload-icon"><Camera size={20} /></span><strong>Take a photo or upload</strong><span>Use your camera or choose an image from your device</span><span className="upload-formats"><ImagePlus size={14} /> JPG, PNG, HEIC up to 10 MB</span><span className="button button-secondary button-small"><Upload size={14} /> Choose image</span></button>}
+              <button className="upload-zone" type="button" onClick={() => inputRef.current?.click()}><span className="upload-icon"><Camera size={20} /></span><strong>Take a photo or upload</strong><span>Use your camera or choose an image from your device</span><span className="upload-formats"><ImagePlus size={14} /> JPG, PNG up to 10 MB</span><span className="button button-secondary button-small"><Upload size={14} /> Choose image</span></button>}
             <input ref={inputRef} className="visually-hidden" type="file" accept="image/*" capture="environment" onChange={event => selectImage(event.target.files?.[0])} aria-label="Choose meter photo" />
-            {photo && <div className="photo-note"><Check size={14} /> Preview ready. Image recognition is not available.</div>}
-            <div className="scan-demo"><span><ScanLine size={17} /><span><strong>Want to scan the display?</strong><small>OCR isn't available in this UI prototype.</small></span></span><button type="button" className="button button-secondary button-small" onClick={() => onToast('Demo only — automatic meter reading is not implemented.')}>Demo scan</button></div>
+            {photo && <div className="photo-note"><Check size={14} /> Preview ready. The image is not uploaded or recognized.</div>}
+            <div className="scan-demo"><span><ScanLine size={17} /><span><strong>Read the meter display</strong><small>For now, enter the value manually.</small></span></span><span className="badge badge-neutral">OCR NOT AVAILABLE</span></div>
             <div className="form-divider" />
             <div className="field-grid">
-              <div className="field-group"><label htmlFor="meter-reading">Meter reading <span className="required">*</span></label><div className="input-with-unit"><input id="meter-reading" type="number" inputMode="decimal" min="0.01" step="0.01" placeholder="e.g. 3,012.00" value={value} onChange={event => { setValue(event.target.value); setError('') }} /><span>kWh</span></div></div>
+              <div className="field-group"><label htmlFor="meter-reading">Cumulative reading <span className="required">*</span></label><div className="input-with-unit"><input id="meter-reading" type="number" inputMode="decimal" min="0.01" step="0.01" placeholder="e.g. 3,012.00" value={value} onChange={event => { setValue(event.target.value); setError('') }} /><span>kWh</span></div></div>
               <div className="field-group"><label htmlFor="reading-date">Date and time <span className="required">*</span></label><input id="reading-date" type="datetime-local" value={recordedAt} onChange={event => setRecordedAt(event.target.value)} /></div>
             </div>
+            <div className="field-group notes-field"><label htmlFor="reading-notes">Notes <span className="optional">(optional)</span></label><input id="reading-notes" maxLength={500} value={notes} onChange={event => setNotes(event.target.value)} placeholder="e.g. Photo taken before leaving for work" /></div>
             {error && <p className="form-error" role="alert"><AlertCircle size={15} />{error}</p>}
-            {delta !== null && delta < 0 && !error && <p className="form-error"><AlertCircle size={15} />This is below your previous reading. Check the value before confirming.</p>}
+            {delta !== null && delta < 0 && !error && <p className="form-error"><AlertCircle size={15} />This is below your latest saved reading. Check the value.</p>}
             <div className="comparison-box">
-              {previous ? <><span className="comparison-icon"><Zap size={17} /></span><span className="comparison-copy"><strong>Consumption preview</strong><small>Previous reading: {previous.kwh.toLocaleString()} kWh · {formatDate(previous.date)}</small></span><span className="comparison-value">{delta === null ? '—' : delta < 0 ? 'Check value' : `${delta.toFixed(2)} kWh`}<small>{delta !== null && delta >= 0 ? `≈ ₱${(delta * rate).toFixed(2)} estimated` : 'Enter a reading above'}</small></span></> :
-                <><span className="comparison-icon"><Info size={17} /></span><span className="comparison-copy"><strong>First reading</strong><small>Another reading will be needed to calculate household consumption.</small></span></>}
+              {previous ? <><span className="comparison-icon"><Zap size={17} /></span><span className="comparison-copy"><strong>Consumption since previous reading</strong><small>Previous value: {previous.readingKwh.toLocaleString()} kWh · {formatDate(previous.recordedAt)}</small></span><span className="comparison-value">{delta === null ? '—' : delta < 0 ? 'Check value' : `${delta.toFixed(2)} kWh`}<small>{delta !== null && delta >= 0 ? `≈ ₱${(delta * rate).toFixed(2)} estimated` : 'Enter the new meter value'}</small></span></> :
+                <><span className="comparison-icon"><Info size={17} /></span><span className="comparison-copy"><strong>This will be your first reading</strong><small>A second cumulative reading is needed to calculate consumption.</small></span></>}
             </div>
-            <div className="form-actions"><span><span className="required">*</span> Required</span><button type="submit" className="button button-primary"><Check size={16} /> Confirm reading</button></div>
+            <div className="form-actions"><span><span className="required">*</span> Required · saved on this computer</span><button type="submit" className="button button-primary" disabled={saving}>{saving ? 'Saving…' : <><Check size={16} /> Save reading</>}</button></div>
           </form>
         </section>
         <aside className="meter-side-column">
-          <section className="panel reading-guide"><span className="guide-icon"><Camera size={18} /></span><h3>For a clear reading</h3><ul><li>Keep the meter screen in focus.</li><li>Avoid glare and shadows.</li><li>Include the full kWh value.</li><li>Double-check before confirming.</li></ul><span className="guide-disclaimer"><Info size={14} /> Photos aren't uploaded or analyzed.</span></section>
-          <section className="panel last-reading-card"><span className="eyebrow">PREVIOUS READING · DEMO</span><strong>{previous ? previous.kwh.toLocaleString() : '—'} <small>kWh</small></strong><span>{previous ? `Sample entry · ${formatDate(previous.date)}` : 'No previous reading'}</span></section>
+          <section className="panel reading-guide"><span className="guide-icon"><Camera size={18} /></span><h3>For an accurate reading</h3><ul><li>Enter the full cumulative kWh value.</li><li>Include digits after the decimal when shown.</li><li>Use the time you checked the meter.</li><li>Check your entry before saving.</li></ul><span className="guide-disclaimer"><Info size={14} /> The photo remains a temporary preview.</span></section>
+          <section className="panel last-reading-card"><span className="eyebrow">LATEST SAVED READING</span><strong>{latest ? latest.readingKwh.toLocaleString() : '—'} <small>kWh</small></strong><span>{latest ? `${formatDate(latest.recordedAt)} · local SQLite` : 'No previous reading'}</span></section>
         </aside>
       </div>
     </>

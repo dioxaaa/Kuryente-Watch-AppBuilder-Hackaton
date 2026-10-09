@@ -415,6 +415,9 @@ h1, h2, h3, p { margin-top: 0; }
 .confirm-modal h2 { margin: 0 0 7px; color: #2d3b32; font: 700 16px Manrope, sans-serif; }
 .confirm-modal > p:not(.eyebrow) { margin-bottom: 18px; color: #7c887f; font-size: 10px; line-height: 1.6; }
 .modal-actions { display: flex; justify-content: flex-end; gap: 8px; margin-top: 18px; }
+.label-photo-preview { position: relative; overflow: hidden; height: 90px; border: 1px solid #e5ebe5; border-radius: 7px; background: #f8faf8; }
+.label-photo-preview img { width: 100%; height: 100%; object-fit: contain; }
+.label-photo-preview .button { position: absolute; right: 6px; bottom: 6px; }
 .appliance-modal .eyebrow { margin: 0 0 6px; }
 .appliance-modal h2 { margin: 0 0 5px; }
 .appliance-modal > p:not(.eyebrow) { margin-bottom: 0; }
@@ -423,7 +426,45 @@ h1, h2, h3, p { margin-top: 0; }
 .toast-check { display: grid; width: 20px; height: 20px; place-items: center; border-radius: 50%; color: #317c4e; background: #e9f5e8; font-size: 12px; font-weight: 700; }
 .toast > button { display: grid; width: 23px; height: 23px; place-items: center; border: 0; border-radius: 5px; color: #8d9890; background: transparent; font-size: 17px; cursor: pointer; }
 .toast > button:hover { background: #f1f4f1; }
+.toast-error { border-color: #f0d7d4; color: #87433e; }
+.toast-error .toast-check { color: #a44741; background: #ffedeb; }
 @keyframes toast-in { from { opacity: 0; transform: translateY(6px); } to { opacity: 1; transform: translateY(0); } }
+
+/* Local setup and backend availability */
+.loading-state { display: flex; min-height: 100vh; flex-direction: column; align-items: center; justify-content: center; gap: 9px; color: #526258; background: #f6f8f6; }
+.loading-state strong { font: 600 13px 'Aptos Display', 'Segoe UI', sans-serif; }
+.loading-state small { color: #89958c; font-size: 10px; }
+.loading-spinner { width: 27px; height: 27px; margin-bottom: 4px; border: 3px solid #e0e9e0; border-top-color: #289261; border-radius: 50%; animation: loading-spin .8s linear infinite; }
+@keyframes loading-spin { to { transform: rotate(360deg); } }
+.backend-error { display: flex; min-height: 53vh; flex-direction: column; align-items: flex-start; justify-content: center; max-width: 490px; margin: 0 auto; padding: 26px; }
+.backend-error-icon { display: grid; width: 46px; height: 46px; place-items: center; margin-bottom: 18px; border-radius: 13px; color: #bd6746; background: #fff2e9; }
+.backend-error .eyebrow { margin-bottom: 7px; }
+.backend-error h1 { margin: 0 0 8px; color: #29392f; font: 700 22px 'Aptos Display', 'Segoe UI', sans-serif; }
+.backend-error > p:not(.eyebrow) { margin: 0 0 11px; color: #647268; font-size: 11px; line-height: 1.65; }
+.backend-error .backend-error-note { margin-bottom: 17px !important; padding: 10px 12px; border-left: 3px solid #d6a65a; border-radius: 0 6px 6px 0; color: #7b6d50 !important; background: #fbf7ed; font-size: 9px !important; }
+.setup-screen { display: flex; min-height: 100vh; flex-direction: column; align-items: center; justify-content: center; padding: 35px 20px 18px; background: radial-gradient(ellipse at 50% 20%, #eaf4e9 0, #f6f8f6 47%, #f6f8f6 100%); }
+.setup-card { width: min(100%, 455px); padding: 31px 36px 25px; border: 1px solid #e6ebe6; border-radius: 15px; background: #fff; box-shadow: 0 16px 50px #19321d0c, 0 2px 9px #19321d08; }
+.setup-brand { display: flex; align-items: center; gap: 10px; }
+.setup-art { position: relative; display: grid; width: 97px; height: 97px; place-items: center; margin: 25px auto 20px; }
+.setup-art > span { position: relative; z-index: 1; display: grid; width: 49px; height: 49px; place-items: center; border-radius: 15px; color: #1a4731; background: #c9f08f; box-shadow: 0 4px 14px #387b4026; }
+.setup-orbit { position: absolute; border: 1px solid #dceadd; border-radius: 50%; }
+.orbit-one { inset: 8px; }.orbit-two { inset: 0; border-color: #e7eee6; }
+.orbit-dot { position: absolute; width: 7px; height: 7px; border: 2px solid #fff; border-radius: 50%; background: #56a66a; }
+.dot-a { top: 11px; right: 19px; }.dot-b { bottom: 17px; left: 7px; background: #e7a34f; }.dot-c { right: 10px; bottom: 18px; width: 5px; height: 5px; background: #77b9a0; }
+.setup-card > .eyebrow { margin-bottom: 8px; text-align: center; }
+.setup-card > h1 { margin: 0; color: #23382a; font: 700 25px/1.24 'Aptos Display', 'Segoe UI', sans-serif; letter-spacing: -.6px; text-align: center; }
+.setup-description { max-width: 340px; margin: 10px auto 20px; color: #7d8980; font-size: 10px; line-height: 1.65; text-align: center; }
+.setup-card form { display: grid; gap: 14px; }
+.setup-card .field-group label { margin-bottom: 6px; }
+.setup-card .field-group input { height: 41px; font-size: 11px; }
+.setup-submit { width: 100%; min-height: 41px; margin-top: 2px; }
+.setup-privacy { display: flex; align-items: flex-start; gap: 9px; margin-top: 18px; padding: 11px; border: 1px solid #edf2eb; border-radius: 8px; color: #6d8b6e; background: #f8fbf6; }
+.setup-privacy > svg { flex: 0 0 auto; margin-top: 1px; }
+.setup-privacy > span { display: flex; flex-direction: column; gap: 4px; }
+.setup-privacy strong { color: #526d53; font-size: 9px; }
+.setup-privacy small { color: #8b988b; font-size: 8px; line-height: 1.5; }
+.setup-footer { display: flex; width: min(100%, 455px); justify-content: space-between; gap: 10px; margin-top: 15px; color: #9ca69d; font-size: 8px; }
+.setup-footer span { color: #7b9481; }
 
 @media (min-width: 1500px) {
   .main-content { padding-right: 50px; padding-left: 50px; }

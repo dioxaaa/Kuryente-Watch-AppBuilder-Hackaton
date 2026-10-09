@@ -1,5 +1,6 @@
-import { useMemo, useState } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
 import { AirVent, Fan, Lightbulb, Pencil, Plus, Refrigerator, Search, Tv, WashingMachine, X, Zap, Trash2 } from 'lucide-react'
+import { ConfirmModal } from '../components/confirm-modal'
 import { EmptyState } from '../components/empty-state'
 import { PageTitle } from '../components/page-title'
 import { formatPeso } from '../utils/energy-utils'
@@ -11,26 +12,39 @@ const emptyForm = { name: '', category: 'Refrigerator', watts: '', hours: '', pa
 function ApplianceModal({ appliance, onClose, onSave }) {
   const [form, setForm] = useState(appliance ? { ...appliance } : emptyForm)
   const [error, setError] = useState('')
-  const [imageName, setImageName] = useState('')
-  function submit(event) {
+  const [photo, setPhoto] = useState('')
+  const inputRef = useRef(null)
+  useEffect(() => () => { if (photo) URL.revokeObjectURL(photo) }, [photo])
+
+  async function submit(event) {
     event.preventDefault()
     if (!form.name.trim()) return setError('Enter an appliance name.')
-    if (!form.watts || Number(form.watts) <= 0) return setError('Rated watts must be a number greater than zero.')
-    if (!form.hours || Number(form.hours) <= 0 || Number(form.hours) > 24) return setError('Hours used must be between 0 and 24.')
-    onSave({ ...form, name: form.name.trim(), watts: Number(form.watts), hours: Number(form.hours) })
+    if (!form.watts || !Number.isFinite(Number(form.watts)) || Number(form.watts) <= 0) return setError('Rated watts must be a number greater than zero.')
+    if (!form.hours || !Number.isFinite(Number(form.hours)) || Number(form.hours) <= 0 || Number(form.hours) > 24) return setError('Hours used must be between 0 and 24.')
+    const success = await onSave({ ...form, name: form.name.trim(), watts: Number(form.watts), hours: Number(form.hours) })
+    if (!success) setError('The appliance was not saved. Check the local server connection and try again.')
   }
   const change = event => { setError(''); setForm({ ...form, [event.target.name]: event.target.value }) }
+  function choosePhoto(file) {
+    if (!file) return
+    if (!file.type.startsWith('image/')) return setError('Choose an image file.')
+    if (file.size > 10 * 1024 * 1024) return setError('Choose an image smaller than 10 MB.')
+    if (photo) URL.revokeObjectURL(photo)
+    setPhoto(URL.createObjectURL(file))
+  }
   return (
     <div className="modal-backdrop" onMouseDown={event => { if (event.target === event.currentTarget) onClose() }}>
       <section className="confirm-modal appliance-modal" role="dialog" aria-modal="true" aria-labelledby="appliance-modal-title">
         <button className="icon-button modal-close" type="button" onClick={onClose} aria-label="Close dialog"><X size={18} /></button>
-        <p className="eyebrow">APPLIANCE PROFILE</p><h2 id="appliance-modal-title">{appliance ? 'Edit appliance' : 'Add an appliance'}</h2><p>Add the details from your appliance label. Estimates are not measured consumption.</p>
+        <p className="eyebrow">APPLIANCE PROFILE</p><h2 id="appliance-modal-title">{appliance ? 'Edit appliance' : 'Add an appliance'}</h2><p>Add the details from your appliance label. Energy use is estimated from rated watts.</p>
         <form onSubmit={submit} className="appliance-form" noValidate>
-          <div className="field-group"><label htmlFor="appliance-name">Appliance name <span className="required">*</span></label><input id="appliance-name" name="name" value={form.name} onChange={change} placeholder="e.g. Kitchen refrigerator" /></div>
-          <div className="field-grid"><div className="field-group"><label htmlFor="appliance-category">Category</label><select id="appliance-category" name="category" value={form.category} onChange={change}>{categories.slice(1).map(category => <option key={category}>{category}</option>)}</select></div><div className="field-group"><label htmlFor="appliance-watts">Rated power <span className="required">*</span></label><div className="input-with-unit"><input id="appliance-watts" name="watts" type="number" min="1" value={form.watts} onChange={change} placeholder="e.g. 150" /><span>W</span></div></div></div>
-          <div className="field-grid"><div className="field-group"><label htmlFor="appliance-hours">Hours used per day <span className="required">*</span></label><div className="input-with-unit"><input id="appliance-hours" name="hours" type="number" min="0.1" max="24" step="0.1" value={form.hours} onChange={change} placeholder="e.g. 8" /><span>hrs</span></div></div><div className="field-group"><label htmlFor="appliance-pattern">Usage pattern</label><select id="appliance-pattern" name="pattern" value={form.pattern} onChange={change}>{['Daily', 'Weekdays', 'Weekends', 'Occasional'].map(pattern => <option key={pattern}>{pattern}</option>)}</select></div></div>
-          <div className="field-grid"><div className="field-group"><label htmlFor="appliance-brand">Brand <span className="optional">(optional)</span></label><input id="appliance-brand" name="brand" value={form.brand || ''} onChange={change} placeholder="Brand name" /></div><div className="field-group"><label htmlFor="appliance-model">Model <span className="optional">(optional)</span></label><input id="appliance-model" name="model" value={form.model || ''} onChange={change} placeholder="Model number" /></div></div>
-          <label className="field-label">Rating label photo <span className="optional">(optional · preview only)</span></label><label className="mini-upload"><input type="file" accept="image/*" onChange={event => setImageName(event.target.files?.[0]?.name || '')} /><span><Plus size={15} /> {imageName || 'Choose a label photo'}</span><small>Image recognition is not available</small></label>
+          <div className="field-group"><label htmlFor="appliance-name">Appliance name <span className="required">*</span></label><input id="appliance-name" name="name" maxLength={100} value={form.name} onChange={change} placeholder="e.g. Kitchen refrigerator" /></div>
+          <div className="field-grid"><div className="field-group"><label htmlFor="appliance-category">Category</label><select id="appliance-category" name="category" value={form.category} onChange={change}>{categories.slice(1).map(category => <option key={category}>{category}</option>)}</select></div><div className="field-group"><label htmlFor="appliance-watts">Rated power <span className="required">*</span></label><div className="input-with-unit"><input id="appliance-watts" name="watts" type="number" min="1" max="100000" value={form.watts} onChange={change} placeholder="e.g. 150" /><span>W</span></div></div></div>
+          <div className="field-grid"><div className="field-group"><label htmlFor="appliance-hours">Hours used per day <span className="required">*</span></label><div className="input-with-unit"><input id="appliance-hours" name="hours" type="number" min="0.1" max="24" step="0.1" value={form.hours} onChange={change} placeholder="e.g. 8" /><span>hrs</span></div></div><div className="field-group"><label htmlFor="appliance-pattern">Usage pattern</label><select id="appliance-pattern" name="pattern" value={form.pattern || 'Daily'} onChange={change}>{['Daily', 'Weekdays', 'Weekends', 'Occasional'].map(pattern => <option key={pattern}>{pattern}</option>)}</select></div></div>
+          <div className="field-grid"><div className="field-group"><label htmlFor="appliance-brand">Brand <span className="optional">(optional)</span></label><input id="appliance-brand" name="brand" maxLength={100} value={form.brand || ''} onChange={change} placeholder="Brand name" /></div><div className="field-group"><label htmlFor="appliance-model">Model <span className="optional">(optional)</span></label><input id="appliance-model" name="model" maxLength={100} value={form.model || ''} onChange={change} placeholder="Model number" /></div></div>
+          <label className="field-label" htmlFor="appliance-label-photo">Rating label photo <span className="optional">(optional · preview only)</span></label>
+          {photo && <div className="label-photo-preview"><img src={photo} alt="Appliance rating label preview" /><button type="button" className="button button-secondary button-small" onClick={() => { URL.revokeObjectURL(photo); setPhoto('') }}>Remove photo</button></div>}
+          <label className="mini-upload" htmlFor="appliance-label-photo"><input ref={inputRef} id="appliance-label-photo" type="file" accept="image/*" capture="environment" onChange={event => { choosePhoto(event.target.files?.[0]); event.target.value = '' }} /><span><Plus size={15} /> {photo ? 'Choose a different label photo' : 'Take or choose a label photo'}</span><small>OCR not connected</small></label>
           {error && <p className="form-error" role="alert">{error}</p>}
           <div className="modal-actions"><button type="button" className="button button-secondary" onClick={onClose}>Cancel</button><button type="submit" className="button button-primary"><Plus size={15} /> {appliance ? 'Save changes' : 'Add appliance'}</button></div>
         </form>
@@ -43,28 +57,36 @@ export function AppliancesPage({ appliances, onAdd, onUpdate, onDelete, rate, on
   const [filter, setFilter] = useState('All appliances')
   const [search, setSearch] = useState('')
   const [modal, setModal] = useState(undefined)
+  const [deleteTarget, setDeleteTarget] = useState(null)
   const shown = useMemo(() => appliances.filter(item => (filter === 'All appliances' || item.category === filter) && `${item.name} ${item.category}`.toLowerCase().includes(search.toLowerCase())), [appliances, filter, search])
   const totalDaily = shown.reduce((sum, appliance) => sum + (appliance.watts * appliance.hours) / 1000, 0)
-  function save(item) {
-    if (modal?.id) onUpdate(item)
-    else onAdd(item)
+
+  async function save(item) {
+    const saved = modal?.id ? await onUpdate(item) : await onAdd(item)
+    if (!saved) return false
     setModal(undefined)
-    onToast(modal?.id ? 'Appliance updated for this demo session.' : 'Appliance added for this demo session.')
+    onToast(modal?.id ? 'Appliance updated in your local database.' : 'Appliance saved in your local database.')
+    return true
+  }
+  async function removeAppliance() {
+    if (await onDelete(deleteTarget.id)) onToast('Appliance deleted from the local database.')
+    setDeleteTarget(null)
   }
   return (
     <>
-      <PageTitle eyebrow="YOUR HOUSEHOLD" title="My appliances" description="Keep a simple inventory and estimate energy use from each rating label." action={<button className="button button-primary" onClick={() => setModal(null)}><Plus size={17} /> Add appliance</button>} />
-      <div className="demo-banner"><Zap size={16} /><span><strong>Estimates only.</strong> Rated watts × hours of use. Actual appliance consumption may differ.</span></div>
+      <PageTitle eyebrow="YOUR HOUSEHOLD" title="My appliances" description="Keep a household inventory and estimate energy use from each rating label." action={<button className="button button-primary" onClick={() => setModal(null)}><Plus size={17} /> Add appliance</button>} />
+      <div className="demo-banner"><Zap size={16} /><span><strong>Rated-power estimates.</strong> Watts × daily hours. Actual appliance consumption may differ.</span></div>
       <div className="appliance-overview"><div><span>REGISTERED APPLIANCES</span><strong>{appliances.length}</strong></div><i /><div><span>ESTIMATED DAILY USE</span><strong>{totalDaily.toFixed(1)} <small>kWh/day</small></strong></div><i /><div><span>ESTIMATED MONTHLY COST</span><strong>{formatPeso(totalDaily * 30 * rate)} <small>/ month</small></strong></div></div>
       <section className="panel appliances-panel">
         <div className="appliances-toolbar"><div className="filter-tabs">{categories.map(category => <button key={category} onClick={() => setFilter(category)} className={filter === category ? 'filter-active' : ''}>{category}</button>)}<select className="category-select" aria-label="Filter appliances by category" value={filter} onChange={event => setFilter(event.target.value)}>{categories.map(category => <option key={category}>{category}</option>)}</select></div><label className="search-input"><Search size={16} /><input aria-label="Search appliances" placeholder="Search appliances" value={search} onChange={event => setSearch(event.target.value)} /></label></div>
         {shown.length ? <div className="appliance-grid">{shown.map(appliance => {
           const Icon = icons[appliance.category] || Lightbulb
           const daily = (appliance.watts * appliance.hours) / 1000
-          return <article className="appliance-card" key={appliance.id}><div className="appliance-card-top"><span className={`appliance-icon appliance-${appliance.category.toLowerCase().replaceAll(' ', '-')}`}><Icon size={19} /></span><span className="badge badge-demo">DEMO</span><div className="card-menu"><button className="icon-button" onClick={() => setModal(appliance)} aria-label={`Edit ${appliance.name}`}><Pencil size={15} /></button><button className="icon-button" onClick={() => { onDelete(appliance.id); onToast('Appliance removed from this demo session.') }} aria-label={`Delete ${appliance.name}`}><Trash2 size={15} /></button></div></div><span className="appliance-category">{appliance.category}</span><h3>{appliance.name}</h3><p>{appliance.brand || 'Sample appliance'}{appliance.model ? ` · ${appliance.model}` : ''}</p><div className="appliance-details"><span><Zap size={14} /> {appliance.watts} W rated</span><span>{appliance.hours} hrs/day · {appliance.pattern || 'Daily'}</span></div><div className="appliance-estimate"><div><span>Estimated energy</span><strong>{daily.toFixed(2)} <small>kWh/day</small></strong></div><div className="mini-bars"><i /><i /><i /><i /><i /><i /><i /></div></div></article>
-        })}</div> : <EmptyState title={search || filter !== 'All appliances' ? 'No matching appliances' : 'No appliances yet'} description={search || filter !== 'All appliances' ? 'Try a different search or category.' : 'Add an appliance to start estimating household energy use.'} action={<button className="button button-primary" onClick={() => setModal(null)}><Plus size={16} /> Add appliance</button>} />}
+          return <article className="appliance-card" key={appliance.id}><div className="appliance-card-top"><span className={`appliance-icon appliance-${appliance.category.toLowerCase().replaceAll(' ', '-')}`}><Icon size={19} /></span><span className={`badge ${appliance.isSample ? 'badge-demo' : 'badge-success'}`}>{appliance.isSample ? 'SAMPLE' : 'LOCAL'}</span><div className="card-menu"><button className="icon-button" onClick={() => setModal(appliance)} aria-label={`Edit ${appliance.name}`}><Pencil size={15} /></button><button className="icon-button" onClick={() => setDeleteTarget(appliance)} aria-label={`Delete ${appliance.name}`}><Trash2 size={15} /></button></div></div><span className="appliance-category">{appliance.category}</span><h3>{appliance.name}</h3><p>{appliance.brand || (appliance.isSample ? 'Sample appliance' : 'No brand entered')}{appliance.model ? ` · ${appliance.model}` : ''}</p><div className="appliance-details"><span><Zap size={14} /> {appliance.watts} W rated</span><span>{appliance.hours} hrs/day · {appliance.pattern || 'Daily'}</span></div><div className="appliance-estimate"><div><span>Estimated energy</span><strong>{daily.toFixed(2)} <small>kWh/day</small></strong></div><div className="mini-bars"><i /><i /><i /><i /><i /><i /><i /></div></div></article>
+        })}</div> : <EmptyState title={search || filter !== 'All appliances' ? 'No matching appliances' : 'No appliances yet'} description={search || filter !== 'All appliances' ? 'Try another search or category.' : 'Add an appliance to start estimating household energy use.'} action={<button className="button button-primary" onClick={() => setModal(null)}><Plus size={16} /> Add appliance</button>} />}
       </section>
       {modal !== undefined && <ApplianceModal appliance={modal || undefined} onClose={() => setModal(undefined)} onSave={save} />}
+      {deleteTarget && <ConfirmModal title={`Delete ${deleteTarget.name}?`} description="This appliance profile will be removed from the local database. This action cannot be undone." confirmLabel="Delete appliance" danger onConfirm={removeAppliance} onCancel={() => setDeleteTarget(null)} />}
     </>
   )
 }

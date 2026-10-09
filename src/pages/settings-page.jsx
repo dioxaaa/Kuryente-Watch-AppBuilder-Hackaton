@@ -3,57 +3,82 @@ import { Bell, Check, CircleHelp, RotateCcw, Save, Settings2, ShieldCheck, Slide
 import { PageTitle } from '../components/page-title'
 import { ConfirmModal } from '../components/confirm-modal'
 
-export function SettingsPage({ settings, onSave, onToast }) {
-  const [form, setForm] = useState({ ...settings })
+export function SettingsPage({ profile, settings, onSave, onResetProfile, onToast }) {
+  const [form, setForm] = useState({
+    userName: profile.userName,
+    householdName: profile.householdName,
+    ratePerKwh: settings.ratePerKwh,
+    compact: settings.compact,
+    weeklySummary: settings.weeklySummary,
+  })
   const [confirmReset, setConfirmReset] = useState(false)
-  useEffect(() => setForm({ ...settings }), [settings])
-  function save(event) {
+  const [saving, setSaving] = useState(false)
+  useEffect(() => setForm({
+    userName: profile.userName,
+    householdName: profile.householdName,
+    ratePerKwh: settings.ratePerKwh,
+    compact: settings.compact,
+    weeklySummary: settings.weeklySummary,
+  }), [profile, settings])
+
+  async function save(event) {
     event.preventDefault()
-    if (!form.household.trim()) {
-      onToast('Enter a household name.')
-      return
+    const userName = form.userName.trim()
+    const householdName = form.householdName.trim()
+    const ratePerKwh = Number(form.ratePerKwh)
+    if (!userName || !householdName) return onToast('Enter both a profile name and household name.', 'error')
+    if (userName.length > 80 || householdName.length > 100) return onToast('Name length is too long.', 'error')
+    if (!Number.isFinite(ratePerKwh) || ratePerKwh <= 0 || ratePerKwh > 1000) return onToast('Enter a rate between ₱0.01 and ₱1,000 per kWh.', 'error')
+    setSaving(true)
+    try {
+      const saved = await onSave({ ...form, userName, householdName, ratePerKwh })
+      if (saved) onToast('Profile and settings saved to the local database.')
+    } catch (failure) {
+      onToast(failure.message || 'Could not save settings.', 'error')
+    } finally {
+      setSaving(false)
     }
-    if (!form.rate || Number(form.rate) <= 0 || Number(form.rate) > 1000) {
-      onToast('Enter a rate between ₱0.01 and ₱1,000 per kWh.')
-      return
+  }
+
+  async function resetProfile() {
+    try {
+      const reset = await onResetProfile()
+      if (reset) {
+        setConfirmReset(false)
+        onToast('Local profile reset. Your readings and appliances were retained.')
+      }
+    } catch (failure) {
+      onToast(failure.message || 'Could not reset this profile.', 'error')
     }
-    onSave({ ...form, rate: Number(form.rate) })
-    onToast('Settings saved for this demo session.')
   }
-  function reset() {
-    const defaults = { rate: 12.5, household: 'Casa de Santos', compact: false, weeklySummary: true }
-    setForm(defaults)
-    onSave(defaults)
-    setConfirmReset(false)
-    onToast('Settings reset for this demo session.')
-  }
+
   return (
     <>
-      <PageTitle eyebrow="MAKE IT YOURS" title="Settings" description="Personalize the demo household and sample energy-rate estimates." action={<button className="button button-secondary" onClick={() => setConfirmReset(true)}><RotateCcw size={15} /> Reset</button>} />
-      <div className="demo-banner"><ShieldCheck size={16} /><span><strong>Temporary settings.</strong> Changes only stay in React state and reset when you refresh the page.</span></div>
-      <form className="settings-layout" onSubmit={save}>
+      <PageTitle eyebrow="LOCAL INSTALLATION" title="Profile & settings" description="Update your household profile and estimate rate for this computer." action={<button type="button" className="button button-secondary" onClick={() => setConfirmReset(true)}><RotateCcw size={15} /> Reset setup</button>} />
+      <div className="demo-banner"><ShieldCheck size={16} /><span><strong>Stored on this installation.</strong> There are no passwords or online account.</span></div>
+      <form className="settings-layout" onSubmit={save} noValidate>
         <div className="settings-main">
           <section className="panel settings-panel">
-            <div className="settings-section-heading"><span className="settings-section-icon"><Settings2 size={18} /></span><div><h2>Household details</h2><p>Give your demo household a familiar name.</p></div></div>
-            <div className="settings-field"><label htmlFor="household-name">Household name</label><input id="household-name" value={form.household} onChange={event => setForm({ ...form, household: event.target.value })} placeholder="e.g. Casa de Santos" /></div>
+            <div className="settings-section-heading"><span className="settings-section-icon"><UserRound size={18} /></span><div><h2>Profile & household</h2><p>These names are stored locally in SQLite.</p></div></div>
+            <div className="field-grid settings-name-grid"><div className="settings-field"><label htmlFor="profile-name">Your name</label><input id="profile-name" maxLength={80} value={form.userName} onChange={event => setForm({ ...form, userName: event.target.value })} /></div><div className="settings-field"><label htmlFor="household-name">Household name</label><input id="household-name" maxLength={100} value={form.householdName} onChange={event => setForm({ ...form, householdName: event.target.value })} /></div></div>
           </section>
           <section className="panel settings-panel">
-            <div className="settings-section-heading"><span className="settings-section-icon"><SlidersHorizontal size={18} /></span><div><h2>Energy rate</h2><p>Used for estimated bills only. Your utility rate may vary.</p></div></div>
-            <div className="settings-field rate-field"><label htmlFor="rate-per-kwh">Electricity price</label><div className="input-with-unit"><span>₱</span><input id="rate-per-kwh" type="number" min="0.01" max="1000" step="0.01" value={form.rate} onChange={event => setForm({ ...form, rate: event.target.value })} /><span>/ kWh</span></div><small>Demo default: ₱12.50 per kWh. Check your latest bill for your actual rate.</small></div>
+            <div className="settings-section-heading"><span className="settings-section-icon"><Settings2 size={18} /></span><div><h2>Energy rate</h2><p>Used for estimated bills only. Your utility rate may vary.</p></div></div>
+            <div className="settings-field rate-field"><label htmlFor="rate-per-kwh">Electricity price</label><div className="input-with-unit"><span>₱</span><input id="rate-per-kwh" type="number" min="0.01" max="1000" step="0.01" value={form.ratePerKwh} onChange={event => setForm({ ...form, ratePerKwh: event.target.value })} /><span>/ kWh</span></div><small>Check your electricity bill for your current rate per kilowatt-hour.</small></div>
           </section>
           <section className="panel settings-panel">
-            <div className="settings-section-heading"><span className="settings-section-icon"><Bell size={18} /></span><div><h2>Display preferences</h2><p>Adjust this prototype's presentation.</p></div></div>
+            <div className="settings-section-heading"><span className="settings-section-icon"><SlidersHorizontal size={18} /></span><div><h2>Display preferences</h2><p>Stored with your local settings.</p></div></div>
             <div className="preference-row"><span className="preference-icon"><UserRound size={17} /></span><span><strong>Compact overview</strong><small>Show a denser summary layout</small></span><button type="button" role="switch" aria-checked={form.compact} className={`toggle ${form.compact ? 'toggle-on' : ''}`} onClick={() => setForm({ ...form, compact: !form.compact })}><i /></button></div>
-            <div className="preference-row"><span className="preference-icon"><Bell size={17} /></span><span><strong>Weekly summary reminder</strong><small>Demo-only display preference</small></span><button type="button" role="switch" aria-checked={form.weeklySummary} className={`toggle ${form.weeklySummary ? 'toggle-on' : ''}`} onClick={() => setForm({ ...form, weeklySummary: !form.weeklySummary })}><i /></button></div>
+            <div className="preference-row"><span className="preference-icon"><Bell size={17} /></span><span><strong>Weekly summary reminder</strong><small>Display preference only; no notifications are sent</small></span><button type="button" role="switch" aria-checked={form.weeklySummary} className={`toggle ${form.weeklySummary ? 'toggle-on' : ''}`} onClick={() => setForm({ ...form, weeklySummary: !form.weeklySummary })}><i /></button></div>
           </section>
-          <div className="settings-save-row"><span><Check size={14} /> Changes apply to this demo session</span><button className="button button-primary" type="submit"><Save size={16} /> Save settings</button></div>
+          <div className="settings-save-row"><span><Check size={14} /> Settings persist in local SQLite</span><button className="button button-primary" type="submit" disabled={saving}>{saving ? 'Saving…' : <><Save size={16} /> Save changes</>}</button></div>
         </div>
         <aside className="settings-aside">
-          <section className="panel account-card"><div className="settings-section-heading"><span className="avatar avatar-large">MS</span><div><h3>Maria Santos</h3><p>Demo household owner</p></div></div><div className="account-separator" /><div className="account-detail"><span>Household</span><strong>{form.household || 'Casa de Santos'}</strong></div><div className="account-detail"><span>Electricity rate</span><strong>₱{Number(form.rate || 0).toFixed(2)} / kWh</strong></div><span className="badge badge-demo"><i /> DEMO PROFILE</span></section>
-          <section className="panel privacy-card-settings"><span className="privacy-large-icon"><ShieldCheck size={21} /></span><h3>Privacy first</h3><p>This is a frontend-only prototype. Your inputs and photos remain in this browser session and are not sent to a server.</p><button type="button" className="text-button" onClick={() => onToast('This is a UI prototype with no data export or remote services.')}>Learn about this demo <CircleHelp size={15} /></button></section>
+          <section className="panel account-card"><div className="settings-section-heading"><span className="avatar avatar-large">{profile.userName.split(/\s+/).map(part => part[0]).slice(0, 2).join('').toUpperCase()}</span><div><h3>{form.userName || profile.userName}</h3><p>Local profile · no online account</p></div></div><div className="account-separator" /><div className="account-detail"><span>Household</span><strong>{form.householdName || profile.householdName}</strong></div><div className="account-detail"><span>Electricity rate</span><strong>₱{Number(form.ratePerKwh || 0).toFixed(2)} / kWh</strong></div><span className="badge badge-success"><i /> THIS COMPUTER</span></section>
+          <section className="panel privacy-card-settings"><span className="privacy-large-icon"><ShieldCheck size={21} /></span><h3>Your local data</h3><p>Profile, readings, appliances, and settings live in a SQLite file on this computer. Back up the data folder if you need a copy.</p><button type="button" className="text-button" onClick={() => onToast('Your SQLite file is stored under the project data/ folder.')}>Where is my data? <CircleHelp size={15} /></button></section>
         </aside>
       </form>
-      {confirmReset && <ConfirmModal title="Reset demo settings?" description="Your rate, household name, and display preferences will return to their demo defaults." confirmLabel="Reset settings" onConfirm={reset} onCancel={() => setConfirmReset(false)} />}
+      {confirmReset && <ConfirmModal title="Reset local setup?" description="This removes only your saved profile and household name, then returns to onboarding. Meter readings, appliances, settings, and alerts are retained." confirmLabel="Reset profile" onConfirm={resetProfile} onCancel={() => setConfirmReset(false)} />}
     </>
   )
 }

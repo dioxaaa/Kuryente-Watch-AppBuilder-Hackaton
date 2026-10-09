@@ -72,7 +72,10 @@ export function listAlerts(db, { device, includeDismissed = false } = {}) {
 }
 export function updateAlert(db, id, { read, dismissed }) {
   const sets = [], args = []
-  if (read !== undefined) { sets.push('read = ?'); args.push(read ? 1 : 0) }
+  if (read !== undefined) {
+    sets.push('read = ?', 'is_read = ?')
+    args.push(read ? 1 : 0, read ? 1 : 0)
+  }
   if (dismissed !== undefined) { sets.push('dismissed = ?'); args.push(dismissed ? 1 : 0) }
   if (!sets.length) return false
   return db.prepare(`UPDATE alerts SET ${sets.join(', ')} WHERE id = ?`).run(...args, id).changes > 0
@@ -89,5 +92,9 @@ export const getSetting = (db, key, fallback) => {
 
 // ---------- wipe everything ----------
 export function clearAllData(db) {
-  db.transaction(() => { for (const t of ['alerts', 'baselines', 'readings', 'devices', 'settings']) db.exec(`DELETE FROM ${t}`) })()
+  db.transaction(() => {
+    for (const table of ['user_profile', 'household', 'meter_readings', 'appliances', 'alerts', 'baselines', 'readings', 'devices', 'app_settings', 'settings']) {
+      db.exec(`DELETE FROM ${table}`)
+    }
+  })()
 }
