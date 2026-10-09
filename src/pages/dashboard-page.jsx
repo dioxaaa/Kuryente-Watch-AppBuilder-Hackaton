@@ -4,7 +4,7 @@ import { StatCard } from '../components/stat-card'
 import { UsageChart } from '../components/usage-chart'
 import { EmptyState } from '../components/empty-state'
 import { AssistantWidget } from '../components/assistant-widget'
-import { daysInMonth, estimateDailyKwh, formatDate, formatPeso, meterDailyUse } from '../utils/energy-utils'
+import { applianceMonthKwh, daysInMonth, estimateDailyKwh, formatDate, formatPeso, meterDailyUse, usagePerDay } from '../utils/energy-utils'
 import { usageSummary } from '../utils/assistant-context'
 
 export function DashboardPage({ profile, readings, alerts, appliances, rate, onNavigate }) {
@@ -23,12 +23,9 @@ export function DashboardPage({ profile, readings, alerts, appliances, rate, onN
   const monthUsage = intervalsThisMonth.reduce((sum, reading) => sum + reading.usageKwh, 0)
   const pace = meterDailyUse(readings, startOfMonth)
   const projectedKwh = pace ? pace.perDay * daysInMonth() : null
-  const chartData = readings.filter(reading => reading.usageKwh !== null).slice(-7).map(reading => ({
-    day: new Intl.DateTimeFormat('en-PH', { month: 'short', day: 'numeric' }).format(new Date(reading.recordedAt)),
-    usage: Number(reading.usageKwh.toFixed(2)),
-  }))
+  const chartData = usagePerDay(readings).slice(-7)
   const recentAlerts = alerts.filter(alert => !alert.read && !alert.dismissed).slice(0, 3)
-  const rankedAppliances = appliances.map(item => ({ ...item, monthKwh: estimateDailyKwh(item) * 30 })).sort((a, b) => b.monthKwh - a.monthKwh)
+  const rankedAppliances = appliances.map(item => ({ ...item, monthKwh: applianceMonthKwh(item) })).sort((a, b) => b.monthKwh - a.monthKwh)
   const topAppliances = rankedAppliances.slice(0, 4)
   const estimateTotalKwh = rankedAppliances.reduce((sum, item) => sum + item.monthKwh, 0)
   const trend = usageSummary(readings.map(reading => ({
@@ -60,7 +57,7 @@ export function DashboardPage({ profile, readings, alerts, appliances, rate, onN
       <div className="dashboard-grid">
         <section className="panel chart-panel">
           <div className="panel-heading">
-            <div><h2>Usage between readings</h2><p>Calculated from cumulative meter values · kWh</p></div>
+            <div><h2>Daily use between readings</h2><p>Average kWh per day, from cumulative meter values and their dates</p></div>
             <button className="text-button" onClick={() => onNavigate('history')}>Full history <ArrowRight size={15} /></button>
           </div>
           {chartData.length ? <UsageChart data={chartData} /> : (
@@ -78,7 +75,7 @@ export function DashboardPage({ profile, readings, alerts, appliances, rate, onN
         <section className="panel">
           <div className="panel-heading"><div><h2>Appliance estimates</h2><p>Label estimates for 30 days · not measured</p></div><button className="text-button" onClick={() => onNavigate('appliances')}>Manage <ArrowRight size={15} /></button></div>
           {topAppliances.length ? topAppliances.map(item => (
-            <div className="activity-item" key={item.id}><span className="activity-icon"><Plug size={16} /></span><span><strong>{item.name}</strong><small>{item.watts} W · {item.hours} hours/day · estimate only</small></span><b>{formatPeso(item.monthKwh * rate)}</b></div>
+            <div className="activity-item" key={item.id}><span className="activity-icon"><Plug size={16} /></span><span><strong>{item.name}</strong><small>{item.watts} W · {item.hours} hours/day · {item.pattern || 'Daily'} · estimate only</small></span><b>{formatPeso(item.monthKwh * rate)}</b></div>
           )) : <EmptyState title="No appliances added" description="Add appliances to estimate usage from their rating labels." action={<button className="button button-secondary" onClick={() => onNavigate('appliances')}>Add appliance</button>} />}
           {topAppliances.length > 0 && <p className="estimate-total">{rankedAppliances.length > topAppliances.length ? `All ${rankedAppliances.length} appliances` : 'Total'}: about <strong>{estimateTotalKwh.toFixed(0)} kWh</strong> · <strong>{formatPeso(estimateTotalKwh * rate)}</strong> per 30 days. Estimated from labels; your meter bill above is the measured figure.</p>}
         </section>

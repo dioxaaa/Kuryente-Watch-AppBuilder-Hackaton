@@ -20,7 +20,7 @@ const tipFor = appliance => CATEGORY_TIPS[appliance?.category] ?? CATEGORY_TIPS[
 
 function rankedAppliances(context) {
   return (Array.isArray(context.appliances) ? context.appliances : [])
-    .map(a => ({ ...a, monthlyKwh: num(a.monthlyKwh) ?? ((num(a.watts) ?? 0) * (num(a.hoursPerDay) ?? 0) * 30) / 1000 }))
+    .map(a => ({ ...a, monthlyKwh: num(a.monthlyKwh) ?? ((num(a.watts) ?? 0) * (num(a.hoursPerDay) ?? 0) * (num(a.daysPerMonth) ?? 30)) / 1000 }))
     .filter(a => a.monthlyKwh > 0)
     .sort((a, b) => b.monthlyKwh - a.monthlyKwh)
 }
@@ -70,7 +70,7 @@ const TOPICS = [
 
 function topicAnswer(topic, list, rate) {
   const own = list.find(a => a.category === topic.category || new RegExp(topic.category.split(' ')[0], 'i').test(a.name))
-  if (own) return applianceTip({ applianceName: own.name, category: own.category, ratedWatts: own.watts, hoursPerDay: own.hoursPerDay }, rate)
+  if (own) return applianceTip({ applianceName: own.name, category: own.category, ratedWatts: own.watts, hoursPerDay: own.hoursPerDay, daysPerMonth: own.daysPerMonth }, rate)
   return `${CATEGORY_TIPS[topic.category]} Add it to your appliances to see what it costs you each month.`
 }
 
@@ -95,7 +95,7 @@ function pickAnswer(question, context) {
   const mentioned = list.find(a => q.includes(String(a.name).toLowerCase()))
   const topic = TOPICS.find(t => t.words.test(q))
 
-  if (mentioned) return applianceTip({ applianceName: mentioned.name, category: mentioned.category, ratedWatts: mentioned.watts, hoursPerDay: mentioned.hoursPerDay }, rate)
+  if (mentioned) return applianceTip({ applianceName: mentioned.name, category: mentioned.category, ratedWatts: mentioned.watts, hoursPerDay: mentioned.hoursPerDay, daysPerMonth: mentioned.daysPerMonth }, rate)
   if (/^(thanks|thank you|thank u|ty|thx|salamat|tnx)\b/.test(q)) return `You're welcome! ${SUGGEST}`
   if (words.length <= 4 && /^(hi|hello|hey|yo|hoy|good (morning|afternoon|evening)|kumusta|musta|magandang)\b/.test(q)) {
     return `Hi! I answer from your saved meter readings, appliances and alerts, and I work without internet. ${SUGGEST}`
@@ -124,11 +124,12 @@ function pickAnswer(question, context) {
 }
 
 // Two-sentence tip for one appliance, the same shape as POST /api/ai/recommendation's insight.
-export function applianceTip({ applianceName, category, ratedWatts, hoursPerDay }, rate) {
+export function applianceTip({ applianceName, category, ratedWatts, hoursPerDay, daysPerMonth }, rate) {
   const name = String(applianceName ?? 'this appliance')
   const dailyKwh = ((num(ratedWatts) ?? 0) * (num(hoursPerDay) ?? 0)) / 1000
-  const cost = num(rate) ? `, about ${peso(dailyKwh * 30 * rate)} a month` : ''
-  const usage = dailyKwh > 0 ? `Your ${name} uses about ${dailyKwh.toFixed(2)} kWh a day${cost}.` : `Add the hours you use your ${name} each day to estimate its cost.`
+  const usedDays = num(daysPerMonth) ?? 30
+  const cost = num(rate) ? `, about ${peso(dailyKwh * usedDays * rate)} a month` : ''
+  const usage = dailyKwh > 0 ? `Your ${name} uses about ${dailyKwh.toFixed(2)} kWh ${usedDays === 30 ? 'a day' : 'on the days you use it'}${cost}.` : `Add the hours you use your ${name} each day to estimate its cost.`
   return `${usage} ${tipFor({ name, category })}`
 }
 
