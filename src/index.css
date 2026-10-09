@@ -1266,3 +1266,34 @@ body { background: var(--bg); letter-spacing: -.005em; }
 [data-theme="dark"] .alert-unread { background: #13241a; box-shadow: inset 3px 0 0 var(--brand); }
 [data-theme="dark"] .recharts-cartesian-grid line { stroke: #1f2e25; }
 [data-theme="dark"] .recharts-tooltip-cursor { fill: #16241c; }
+/* Energy Assistant page: dark mode */
+[data-theme="dark"] .assistant-topline, [data-theme="dark"] .assistant-composer, [data-theme="dark"] .assistant-model-detail { border-color: var(--line); }
+[data-theme="dark"] .assistant-composer { background: transparent; }
+[data-theme="dark"] .assistant-composer textarea, [data-theme="dark"] .assistant-model-picker select { border-color: #26392d; color: #dce8e0; background: #0d1611; }
+[data-theme="dark"] .assistant-composer textarea::placeholder { color: #6f8278; }
+[data-theme="dark"] .assistant-composer-footer > span, [data-theme="dark"] .assistant-model-picker, [data-theme="dark"] .assistant-disclaimer { color: var(--muted-2); }
+[data-theme="dark"] .assistant-model-state { color: #b9cbbf; }
+[data-theme="dark"] .assistant-state-dot { box-shadow: 0 0 0 3px #2a2210; }
+[data-theme="dark"] .assistant-state-ready { box-shadow: 0 0 0 3px var(--brand-soft); }
+[data-theme="dark"] .assistant-welcome-icon, [data-theme="dark"] .assistant-side-icon, [data-theme="dark"] .assistant-message-avatar { color: var(--brand); background: var(--brand-soft); }
+[data-theme="dark"] .assistant-welcome h2, [data-theme="dark"] .assistant-info-card h2 { color: #eef5f0; }
+[data-theme="dark"] .assistant-welcome > p, [data-theme="dark"] .assistant-info-card > p, [data-theme="dark"] .assistant-thinking { color: var(--muted); }
+[data-theme="dark"] .assistant-suggestions button { border-color: #26392d; color: #b9cbbf; background: #0d1611; }
+[data-theme="dark"] .assistant-suggestions button:hover:not(:disabled) { border-color: var(--brand-mid); color: var(--brand); background: #13241a; }
+[data-theme="dark"] .assistant-suggestions button:disabled { opacity: .55; cursor: not-allowed; }
+[data-theme="dark"] .assistant-message-user .assistant-message-avatar { color: #b9cbbf; background: #1b2a21; }
+[data-theme="dark"] .assistant-message-copy { border-color: var(--line); background: #13201a; }
+[data-theme="dark"] .assistant-message-user .assistant-message-copy { border-color: #24452f; background: #173023; }
+[data-theme="dark"] .assistant-message-copy strong { color: var(--muted); }
+[data-theme="dark"] .assistant-message-copy p { color: #dce8e0; }
+[data-theme="dark"] .assistant-error { border-color: #4a2620; color: #f0a497; background: #2a1512; }
+[data-theme="dark"] .assistant-error button { color: #f0a497; }
+[data-theme="dark"] .assistant-model-detail span { color: var(--muted-2); }
+[data-theme="dark"] .assistant-model-detail strong { color: #dce8e0; }
+[data-theme="dark"] .assistant-connect-card { border-color: #4a3b1c; background: #1d1810; }
+[data-theme="dark"] .assistant-connect-heading { color: #f0c46a; }
+[data-theme="dark"] .assistant-connect-card > p { color: #b8ab8f; }
+[data-theme="dark"] .assistant-connect-card .assistant-setup-hint { color: #c9b48a; }
+[data-theme="dark"] .assistant-connect-ready { border-color: #24452f; background: #13241a; }
+[data-theme="dark"] .assistant-connect-ready .assistant-connect-heading { color: var(--brand); }
+[data-theme="dark"] .assistant-connect-ready > p { color: var(--muted); }
