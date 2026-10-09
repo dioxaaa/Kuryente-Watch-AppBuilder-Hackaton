@@ -104,6 +104,18 @@ export function updateAppliance(db, id, a) {
 }
 export const deleteAppliance = (db, id) => db.prepare('DELETE FROM appliances WHERE id = ?').run(id).changes > 0
 
+// ---------- household meter readings (what the user types in from the meter) ----------
+const rowToMeterReading = r => ({ id: r.id, kwh: r.kwh, date: r.recorded_at, source: r.source })
+export const listMeterReadings = db =>
+  db.prepare('SELECT * FROM meter_readings ORDER BY recorded_at, rowid').all().map(rowToMeterReading)
+export function addMeterReading(db, { id = randomUUID(), kwh, date, source = 'Manual entry' }) {
+  // INSERT OR IGNORE keeps a retried one-time import from creating duplicates
+  db.prepare('INSERT OR IGNORE INTO meter_readings (id, kwh, recorded_at, source, created_at) VALUES (?,?,?,?,?)')
+    .run(id, kwh, date, source, now())
+  return rowToMeterReading(db.prepare('SELECT * FROM meter_readings WHERE id = ?').get(id))
+}
+export const deleteMeterReading = (db, id) => db.prepare('DELETE FROM meter_readings WHERE id = ?').run(id).changes > 0
+
 // ---------- settings ----------
 export const setSetting = (db, key, value) =>
   db.prepare('INSERT INTO settings (key, value) VALUES (?,?) ON CONFLICT(key) DO UPDATE SET value=excluded.value').run(key, JSON.stringify(value))
@@ -114,5 +126,5 @@ export const getSetting = (db, key, fallback) => {
 
 // ---------- wipe everything ----------
 export function clearAllData(db) {
-  db.transaction(() => { for (const t of ['alerts', 'baselines', 'readings', 'devices', 'appliances', 'settings']) db.exec(`DELETE FROM ${t}`) })()
+  db.transaction(() => { for (const t of ['alerts', 'baselines', 'readings', 'devices', 'appliances', 'meter_readings', 'settings']) db.exec(`DELETE FROM ${t}`) })()
 }

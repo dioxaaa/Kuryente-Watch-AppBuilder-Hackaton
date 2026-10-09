@@ -14,7 +14,7 @@ function buildSystemPrompt(ctx = {}) {
     'Explain electricity usage in simple, friendly language. Keep answers short (3-5 sentences).',
     'Reply in the same language the user writes in (English or Taglish).',
     'Only use the household data below. If the data is not enough, say so instead of guessing.',
-    'All figures are sample demo data and appliance numbers are estimates from rated watts, so never claim to diagnose faults.',
+    'Appliance numbers are estimates from rated watts, and any alerts listed are sample alerts, so never claim to diagnose faults.',
     '',
     'Household data:',
   ]

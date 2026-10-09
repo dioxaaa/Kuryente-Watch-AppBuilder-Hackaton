@@ -17,10 +17,12 @@ export const navItems = [
   { id: 'history', label: 'Energy history', icon: ChartNoAxesCombined },
   { id: 'alerts', label: 'Alerts', icon: Bell },
   { id: 'settings', label: 'Settings', icon: Settings },
-  { id: 'admin', label: 'About this demo', icon: ShieldCheck },
+  { id: 'admin', label: 'About this prototype', icon: ShieldCheck },
 ]
 
-export function AppSidebar({ activePage, onNavigate, mobileOpen, onClose, alertCount }) {
+import { initialsOf } from '../utils/energy-utils'
+
+export function AppSidebar({ household, activePage, onNavigate, mobileOpen, onClose, alertCount }) {
   return (
     <>
       {mobileOpen && <button className="drawer-scrim" aria-label="Close navigation menu" onClick={onClose} />}
@@ -32,7 +34,7 @@ export function AppSidebar({ activePage, onNavigate, mobileOpen, onClose, alertC
         </div>
         <div className="household-switch">
           <span className="household-icon"><House size={16} /></span>
-          <span><small>HOUSEHOLD</small><strong>Casa de Santos</strong></span>
+          <span><small>HOUSEHOLD</small><strong>{household || 'My household'}</strong></span>
           <ChevronRight size={15} className="muted-icon" />
         </div>
         <p className="nav-caption">WORKSPACE</p>
@@ -49,11 +51,11 @@ export function AppSidebar({ activePage, onNavigate, mobileOpen, onClose, alertC
           <div className="privacy-card">
             <span className="privacy-icon"><ShieldCheck size={17} /></span>
             <strong>Your data stays yours</strong>
-            <p>This prototype keeps changes in temporary page state only.</p>
+            <p>Everything is saved in a database on this computer, not online.</p>
           </div>
           <button className="profile-mini" onClick={() => onNavigate('settings')}>
-            <span className="avatar avatar-small">MS</span>
-            <span><strong>Maria Santos</strong><small>Homeowner</small></span>
+            <span className="avatar avatar-small">{initialsOf(household)}</span>
+            <span><strong>{household || 'My household'}</strong><small>Household</small></span>
             <ChevronRight size={16} className="muted-icon" />
           </button>
         </div>

@@ -3,6 +3,8 @@ import express from 'express'
 import * as repo from './repository.js'
 import { trainDevice, scanDevice } from './service.js'
 import { askAssistant } from './assistant.js'
+import { cleanAppliance } from './appliances.js'
+import { cleanMeterReading } from './meter-readings.js'
 export function createApp(db) {
   const app = express()
   app.use(express.json({ limit: '50mb' })) // large CSV-sized imports
@@ -42,6 +44,18 @@ export function createApp(db) {
   app.get('/api/alerts', wrap(req => repo.listAlerts(db, { device: req.query.device, includeDismissed: req.query.includeDismissed === 'true' })))
   app.get('/api/alerts/unread-count', wrap(() => ({ count: repo.unreadAlertCount(db) })))
   app.patch('/api/alerts/:id', wrap(req => ({ updated: repo.updateAlert(db, req.params.id, req.body) })))
+
+  // appliances
+  const notFound = () => Object.assign(new Error('Appliance not found.'), { status: 404 })
+  app.get('/api/appliances', wrap(() => repo.listAppliances(db)))
+  app.post('/api/appliances', wrap(req => repo.addAppliance(db, cleanAppliance(req.body))))
+  app.put('/api/appliances/:id', wrap(req => repo.updateAppliance(db, req.params.id, cleanAppliance(req.body)) ?? (() => { throw notFound() })()))
+  app.delete('/api/appliances/:id', wrap(req => ({ deleted: repo.deleteAppliance(db, req.params.id) })))
+
+  // household meter readings
+  app.get('/api/meter-readings', wrap(() => repo.listMeterReadings(db)))
+  app.post('/api/meter-readings', wrap(req => repo.addMeterReading(db, cleanMeterReading(req.body))))
+  app.delete('/api/meter-readings/:id', wrap(req => ({ deleted: repo.deleteMeterReading(db, req.params.id) })))
 
   // settings
   app.get('/api/settings/:key', wrap(req => ({ value: repo.getSetting(db, req.params.key, null) })))

@@ -47,6 +47,14 @@ CREATE TABLE IF NOT EXISTS appliances (
   created_at TEXT NOT NULL,
   updated_at TEXT NOT NULL
 );
+CREATE TABLE IF NOT EXISTS meter_readings (
+  id          TEXT PRIMARY KEY,
+  kwh         REAL NOT NULL,         -- value shown on the household meter
+  recorded_at TEXT NOT NULL,         -- ISO string, when the meter was read
+  source      TEXT NOT NULL DEFAULT 'Manual entry',
+  created_at  TEXT NOT NULL
+);
+CREATE INDEX IF NOT EXISTS idx_meter_readings_time ON meter_readings(recorded_at);
 CREATE TABLE IF NOT EXISTS settings (
   key   TEXT PRIMARY KEY,
   value TEXT NOT NULL                -- JSON
