@@ -564,3 +564,198 @@ h1, h2, h3, p { margin-top: 0; }
 @media (prefers-reduced-motion: reduce) {
   *, *::before, *::after { scroll-behavior: auto !important; animation-duration: .01ms !important; animation-iteration-count: 1 !important; transition-duration: .01ms !important; }
 }
+
+
+/* ================= DARK MODE ================= */
+:root[data-theme="dark"] {
+  color-scheme: dark;
+  color: #dbe6df;
+  background: #0e1410;
+  --text: #dbe6df;
+  --muted: #8a998f;
+  --line: #263229;
+  --paper: #151e18;
+  --mint: #16251c;
+  --shadow: 0 2px 10px rgba(0,0,0,.35), 0 1px 2px rgba(0,0,0,.3);
+}
+[data-theme="dark"] body { background: #0e1410; }
+
+/* Main surfaces */
+[data-theme="dark"] .topbar { background: rgba(21,30,24,.92); border-color: #263229; }
+[data-theme="dark"] .app-footer { background: #121a15; border-color: #263229; }
+[data-theme="dark"] .stat-card,
+[data-theme="dark"] .panel,
+[data-theme="dark"] .appliance-overview,
+[data-theme="dark"] .appliance-card,
+[data-theme="dark"] .confirm-modal,
+[data-theme="dark"] .toast { background: #151e18; border-color: #263229; }
+
+/* Inputs and secondary buttons */
+[data-theme="dark"] .button-secondary,
+[data-theme="dark"] .field-group input,
+[data-theme="dark"] .field-group select,
+[data-theme="dark"] .settings-field input,
+[data-theme="dark"] .input-with-unit,
+[data-theme="dark"] .search-input,
+[data-theme="dark"] .category-select { background: #101813; border-color: #2b392f; color: #cfdcd3; }
+[data-theme="dark"] .input-with-unit input,
+[data-theme="dark"] .search-input input { background: transparent; color: #cfdcd3; }
+[data-theme="dark"] .button-secondary:hover { background: #1b2720; border-color: #35473b; }
+
+/* Subtle inner surfaces */
+[data-theme="dark"] .upload-zone,
+[data-theme="dark"] .scan-demo,
+[data-theme="dark"] .comparison-box,
+[data-theme="dark"] .history-summary,
+[data-theme="dark"] .range-selector,
+[data-theme="dark"] .mini-upload,
+[data-theme="dark"] .photo-preview { background: #121a15; border-color: #263229; }
+[data-theme="dark"] .upload-zone:hover { background: #17231b; }
+[data-theme="dark"] .demo-banner { background: rgba(66,170,107,.1); border-color: rgba(66,170,107,.25); color: #a9bfb0; }
+[data-theme="dark"] .demo-banner strong,
+[data-theme="dark"] .demo-banner button { color: #7fd29d; }
+
+/* Gradients */
+[data-theme="dark"] .insight-panel { background: linear-gradient(110deg, #17231b, #131c16); }
+[data-theme="dark"] .about-hero { background: radial-gradient(ellipse at 100% 0, #1a2b1f 0, #151e18 61%); }
+[data-theme="dark"] .alert-unread { background: linear-gradient(90deg, #17231b, transparent); }
+
+/* Borders and dividers */
+[data-theme="dark"] .chart-footer,
+[data-theme="dark"] .appliance-details,
+[data-theme="dark"] .appliances-toolbar,
+[data-theme="dark"] .alerts-toolbar,
+[data-theme="dark"] .activity-item,
+[data-theme="dark"] .alert-card,
+[data-theme="dark"] .data-table th,
+[data-theme="dark"] .data-table td,
+[data-theme="dark"] .preference-row,
+[data-theme="dark"] .status-row,
+[data-theme="dark"] .guide-disclaimer,
+[data-theme="dark"] .principles-grid > div,
+[data-theme="dark"] .chart-period { border-color: #263229; }
+[data-theme="dark"] .activity-divider,
+[data-theme="dark"] .form-divider,
+[data-theme="dark"] .account-separator,
+[data-theme="dark"] .appliance-overview > i { background: #263229; }
+[data-theme="dark"] .notification-dot { border-color: #151e18; }
+
+/* Headings and strong text */
+[data-theme="dark"] .page-title-row h1,
+[data-theme="dark"] .panel-heading h2,
+[data-theme="dark"] .insight-panel h2,
+[data-theme="dark"] .stat-value,
+[data-theme="dark"] .activity-reading-copy strong,
+[data-theme="dark"] .appliance-card h3,
+[data-theme="dark"] .alert-title-row h3,
+[data-theme="dark"] .settings-section-heading h2,
+[data-theme="dark"] .reading-guide h3,
+[data-theme="dark"] .empty-state h3,
+[data-theme="dark"] .confirm-modal h2,
+[data-theme="dark"] .about-hero h2,
+[data-theme="dark"] .account-card h3,
+[data-theme="dark"] .privacy-card-settings h3,
+[data-theme="dark"] .history-summary strong,
+[data-theme="dark"] .appliance-overview > div > strong,
+[data-theme="dark"] .last-reading-card > strong,
+[data-theme="dark"] .breadcrumbs strong,
+[data-theme="dark"] .data-table td > strong,
+[data-theme="dark"] .activity-item strong,
+[data-theme="dark"] .preview-alert strong,
+[data-theme="dark"] .comparison-copy strong,
+[data-theme="dark"] .upload-zone strong,
+[data-theme="dark"] .principles-grid strong,
+[data-theme="dark"] .preference-row strong,
+[data-theme="dark"] .account-detail strong,
+[data-theme="dark"] .scan-demo strong,
+[data-theme="dark"] .chart-footer strong,
+[data-theme="dark"] .profile-button,
+[data-theme="dark"] .field-label,
+[data-theme="dark"] .field-group label,
+[data-theme="dark"] .settings-field label { color: #eaf3ed; }
+
+/* Secondary text */
+[data-theme="dark"] .page-description,
+[data-theme="dark"] .stat-label,
+[data-theme="dark"] .stat-foot,
+[data-theme="dark"] .eyebrow,
+[data-theme="dark"] .panel-heading p,
+[data-theme="dark"] .chart-legend > span:first-child,
+[data-theme="dark"] .chart-period,
+[data-theme="dark"] .demo-mode,
+[data-theme="dark"] .breadcrumbs,
+[data-theme="dark"] .alert-content p,
+[data-theme="dark"] .alert-context,
+[data-theme="dark"] .about-hero > p,
+[data-theme="dark"] .privacy-card-settings p,
+[data-theme="dark"] .reading-guide li,
+[data-theme="dark"] .confirm-modal > p:not(.eyebrow),
+[data-theme="dark"] .empty-state p,
+[data-theme="dark"] .comparison-copy small,
+[data-theme="dark"] .data-table td,
+[data-theme="dark"] .appliance-details,
+[data-theme="dark"] .filter-tabs button,
+[data-theme="dark"] .range-selector button,
+[data-theme="dark"] .toast,
+[data-theme="dark"] .status-row,
+[data-theme="dark"] .settings-section-heading p,
+[data-theme="dark"] .preference-row small,
+[data-theme="dark"] .activity-item small,
+[data-theme="dark"] .activity-item > b,
+[data-theme="dark"] .muted-copy,
+[data-theme="dark"] .account-detail span,
+[data-theme="dark"] .appliance-category,
+[data-theme="dark"] .appliance-card > p { color: #9aa99f; }
+[data-theme="dark"] .text-button { color: #4fc08a; }
+
+/* Hover states */
+[data-theme="dark"] .icon-button:hover { color: #eaf3ed; background: #1d2a22; }
+[data-theme="dark"] .filter-tabs button:hover { color: #eaf3ed; background: #1b2720; }
+[data-theme="dark"] .toast > button:hover { background: #1d2a22; }
+
+/* Tinted icon tiles and badges: green */
+[data-theme="dark"] .stat-icon-green,
+[data-theme="dark"] .appliance-icon,
+[data-theme="dark"] .appliance-refrigerator,
+[data-theme="dark"] .meter-illustration,
+[data-theme="dark"] .upload-icon,
+[data-theme="dark"] .insight-icon,
+[data-theme="dark"] .comparison-icon,
+[data-theme="dark"] .guide-icon,
+[data-theme="dark"] .empty-icon,
+[data-theme="dark"] .settings-section-icon,
+[data-theme="dark"] .preference-icon,
+[data-theme="dark"] .privacy-large-icon,
+[data-theme="dark"] .status-ready,
+[data-theme="dark"] .badge-success,
+[data-theme="dark"] .badge-demo,
+[data-theme="dark"] .step-pill > span,
+[data-theme="dark"] .tab-count,
+[data-theme="dark"] .filter-tabs button.filter-active,
+[data-theme="dark"] .range-selector button.range-active { background: rgba(66,170,107,.15); color: #6fd39b; }
+
+/* Amber */
+[data-theme="dark"] .stat-icon-amber,
+[data-theme="dark"] .severity-warning,
+[data-theme="dark"] .alert-icon-warning,
+[data-theme="dark"] .badge-warning,
+[data-theme="dark"] .appliance-rice-cooker,
+[data-theme="dark"] .modal-icon { background: rgba(224,160,70,.16); color: #e6b062; }
+
+/* Blue */
+[data-theme="dark"] .stat-icon-blue,
+[data-theme="dark"] .alert-icon-info,
+[data-theme="dark"] .appliance-air-conditioner { background: rgba(84,150,200,.17); color: #7db6dc; }
+
+/* Purple */
+[data-theme="dark"] .stat-icon-purple { background: rgba(150,120,200,.17); color: #b39ddb; }
+
+/* Red */
+[data-theme="dark"] .severity-high,
+[data-theme="dark"] .alert-icon-high,
+[data-theme="dark"] .badge-danger,
+[data-theme="dark"] .modal-icon-danger { background: rgba(220,100,90,.17); color: #ee8b83; }
+
+/* Neutral */
+[data-theme="dark"] .badge-neutral,
+[data-theme="dark"] .status-off { background: rgba(255,255,255,.07); color: #9aa99f; }

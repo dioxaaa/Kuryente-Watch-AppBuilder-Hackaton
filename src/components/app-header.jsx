@@ -1,6 +1,7 @@
 import { Bell, Menu, Search } from 'lucide-react'
 
 import { useEffect, useState } from 'react'
+import { ThemeToggle } from './theme-toggle.jsx'
 
 export function AppHeader({ title, unreadCount, onMenu, onAlerts, onProfile }) {
   const [online, setOnline] = useState(navigator.onLine)
@@ -21,6 +22,7 @@ export function AppHeader({ title, unreadCount, onMenu, onAlerts, onProfile }) {
       </div>
       <div className="topbar-actions">
         <span className={`demo-mode ${online ? '' : 'connection-offline'}`} title="Connection status only; app data is temporary and is not saved offline"><span /> {online ? 'Online' : 'Offline'}</span>
+        <ThemeToggle />
         <button className="icon-button search-button" aria-label="Search is a demo" title="Search is a demo"><Search size={19} /></button>
         <button className="icon-button notification-button" aria-label={`${unreadCount} unread alerts`} onClick={onAlerts}>
           <Bell size={19} />{unreadCount > 0 && <span className="notification-dot" />}
