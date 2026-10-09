@@ -1,0 +1,1 @@
+export const DEFAULT_SETTINGS = { rate: 12.5, household: 'My household', compact: false, weeklySummary: true }

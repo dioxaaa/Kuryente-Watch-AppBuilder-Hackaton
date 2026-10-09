@@ -84,7 +84,7 @@ export function AssistantWidget(props) {
             <input value={input} onChange={e => setInput(e.target.value)} placeholder="Ask about your electricity..." maxLength={500} aria-label="Your question" />
             <button type="submit" disabled={loading || !input.trim()} aria-label="Send"><Send size={16} /></button>
           </form>
-          <p className="assistant-note">Uses sample demo data. Answers are estimates and may be wrong.</p>
+          <p className="assistant-note">Uses your saved readings and appliances. Answers are estimates and may be wrong.</p>
         </section>
       )}
       <button className="assistant-fab" onClick={() => setOpen(o => !o)} aria-label={open ? 'Close energy assistant' : 'Open energy assistant'} aria-expanded={open}>

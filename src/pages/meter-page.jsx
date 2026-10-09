@@ -39,7 +39,7 @@ export function MeterPage({ readings, rate, onSave, onToast }) {
     setPhoto('')
   }
 
-  function saveReading(event) {
+  async function saveReading(event) {
     event.preventDefault()
     if (!value || !Number.isFinite(Number(value)) || Number(value) <= 0) {
       setError('Enter a valid meter reading greater than zero.')
@@ -53,17 +53,17 @@ export function MeterPage({ readings, rate, onSave, onToast }) {
       setError('Choose a valid date and time for this reading.')
       return
     }
-    onSave({ id: `entry-${Date.now()}`, kwh: Number(value), date: new Date(recordedAt), source: 'Manual entry' })
+    if (!(await onSave({ kwh: Number(value), date: new Date(recordedAt), source: 'Manual entry' }))) return // the app already showed why it could not save
     setValue('')
     removePhoto()
     setError('')
-    onToast('Reading added for this demo session.')
+    onToast('Reading saved.')
   }
 
   return (
     <>
-      <PageTitle eyebrow="HOUSEHOLD MONITORING" title="Scan my meter" description="Add a meter reading with a photo or enter it manually. Photos are only previewed in this session." />
-      <div className="demo-banner"><Info size={16} /><span><strong>Manual entry only.</strong> Automatic meter OCR is not connected in this prototype.</span></div>
+      <PageTitle eyebrow="HOUSEHOLD MONITORING" title="Scan my meter" description="Add a meter reading with a photo or enter it manually. The reading is saved in your local database. Photos are only previewed, not stored." />
+      <div className="demo-banner"><Info size={16} /><span><strong>Manual entry only.</strong> Reading the meter display from a photo is not available yet.</span></div>
       <div className="meter-layout">
         <section className="panel meter-form-panel">
           <div className="panel-heading"><div><h2>New meter reading</h2><p>Fields marked with <span className="required">*</span> are required</p></div><span className="step-pill"><span>01</span> Reading details</span></div>
@@ -73,7 +73,7 @@ export function MeterPage({ readings, rate, onSave, onToast }) {
               <button className="upload-zone" type="button" onClick={() => inputRef.current?.click()}><span className="upload-icon"><Camera size={20} /></span><strong>Take a photo or upload</strong><span>Use your camera or choose an image from your device</span><span className="upload-formats"><ImagePlus size={14} /> JPG, PNG, HEIC up to 10 MB</span><span className="button button-secondary button-small"><Upload size={14} /> Choose image</span></button>}
             <input ref={inputRef} className="visually-hidden" type="file" accept="image/*" capture="environment" onChange={event => selectImage(event.target.files?.[0])} aria-label="Choose meter photo" />
             {photo && <div className="photo-note"><Check size={14} /> Preview ready. Image recognition is not available.</div>}
-            <div className="scan-demo"><span><ScanLine size={17} /><span><strong>Want to scan the display?</strong><small>OCR isn't available in this UI prototype.</small></span></span><button type="button" className="button button-secondary button-small" onClick={() => onToast('Demo only — automatic meter reading is not implemented.')}>Demo scan</button></div>
+            <div className="scan-demo"><span><ScanLine size={17} /><span><strong>Want to scan the display?</strong><small>Automatic reading isn't available yet.</small></span></span><button type="button" className="button button-secondary button-small" onClick={() => onToast('Automatic meter reading is not available yet. Type the value in.')}>Not available yet</button></div>
             <div className="form-divider" />
             <div className="field-grid">
               <div className="field-group"><label htmlFor="meter-reading">Meter reading <span className="required">*</span></label><div className="input-with-unit"><input id="meter-reading" type="number" inputMode="decimal" min="0.01" step="0.01" placeholder="e.g. 3,012.00" value={value} onChange={event => { setValue(event.target.value); setError('') }} /><span>kWh</span></div></div>
@@ -90,7 +90,7 @@ export function MeterPage({ readings, rate, onSave, onToast }) {
         </section>
         <aside className="meter-side-column">
           <section className="panel reading-guide"><span className="guide-icon"><Camera size={18} /></span><h3>For a clear reading</h3><ul><li>Keep the meter screen in focus.</li><li>Avoid glare and shadows.</li><li>Include the full kWh value.</li><li>Double-check before confirming.</li></ul><span className="guide-disclaimer"><Info size={14} /> Photos aren't uploaded or analyzed.</span></section>
-          <section className="panel last-reading-card"><span className="eyebrow">PREVIOUS READING · DEMO</span><strong>{previous ? previous.kwh.toLocaleString() : '—'} <small>kWh</small></strong><span>{previous ? `Sample entry · ${formatDate(previous.date)}` : 'No previous reading'}</span></section>
+          <section className="panel last-reading-card"><span className="eyebrow">PREVIOUS READING</span><strong>{previous ? previous.kwh.toLocaleString() : '—'} <small>kWh</small></strong><span>{previous ? `${previous.source} · ${formatDate(previous.date)}` : 'No previous reading'}</span></section>
         </aside>
       </div>
     </>
