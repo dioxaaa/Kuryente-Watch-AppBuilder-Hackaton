@@ -1,4 +1,4 @@
-const API_BASE = 'http://127.0.0.1:3001/api';
+const API_BASE = '/api'; // same-origin; Vite forwards /api to the local server (see vite.config.ts)
 
 /**
  * Fetch local AI recommendation for an appliance
