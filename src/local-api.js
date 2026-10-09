@@ -183,7 +183,7 @@ export async function builtInChat(body = {}, load) {
   ])
   const context = buildAssistantContext({
     readings,
-    appliances: appliances.map(a => ({ ...a, watts: a.ratedWatts ?? a.watts, hours: a.hoursPerDay ?? a.hours })),
+    appliances: appliances.map(a => ({ ...a, watts: a.ratedWatts ?? a.watts, hours: a.hoursPerDay ?? a.hours, pattern: a.usagePattern ?? a.pattern })),
     alerts,
     rate: ratePerKwh,
   })

@@ -1,7 +1,7 @@
 // What the assistant (and the "Why is my bill high?" card) knows about the household.
 // Built in one place so the chat bubble, the card and the plain-facts list always agree.
 import { alertImpact, kwhText, pesoText, totalImpact } from './alert-impact.js'
-import { estimateDailyKwh, formatDate, usageFromReadings } from './energy-utils.js'
+import { applianceMonthKwh, formatDate, usageFromReadings, usedDaysPer30 } from './energy-utils.js'
 
 const round1 = n => Math.round(n * 10) / 10
 const round2 = n => Math.round(n * 100) / 100
@@ -32,7 +32,9 @@ export function buildAssistantContext({ readings = [], appliances = [], alerts =
       category: a.category,
       watts: a.watts,
       hoursPerDay: a.hours,
-      monthlyKwh: Math.round(estimateDailyKwh(a) * 30 * 10) / 10,
+      pattern: a.pattern ?? 'Daily',
+      daysPerMonth: Math.round(usedDaysPer30(a.pattern) * 10) / 10,
+      monthlyKwh: Math.round(applianceMonthKwh(a) * 10) / 10,
     })),
     alerts: alerts.slice(0, 5).map(a => {
       const impact = alertImpact(a, appliances, rate)
@@ -62,7 +64,7 @@ export function billFacts({ readings = [], appliances = [], alerts = [], rate } 
     }
   }
 
-  const monthly = appliances.map(a => ({ a, kwh: estimateDailyKwh(a) * 30 }))
+  const monthly = appliances.map(a => ({ a, kwh: applianceMonthKwh(a) }))
   const total = monthly.reduce((s, i) => s + i.kwh, 0)
   const biggest = monthly.reduce((best, i) => (!best || i.kwh > best.kwh ? i : best), null)
   if (biggest && total > 0) {

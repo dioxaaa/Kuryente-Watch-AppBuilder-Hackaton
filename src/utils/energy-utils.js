@@ -18,7 +18,40 @@ export const initialsOf = name => {
   return (parts.length > 1 ? parts[0][0] + parts[parts.length - 1][0] : (parts[0] || 'H').slice(0, 2)).toUpperCase()
 }
 
-export const estimateMonthKwh = appliances => appliances.reduce((sum, item) => sum + estimateDailyKwh(item) * 30, 0)
+// Days an appliance runs in a 30-day month for each usage pattern. "Occasional" is taken as about 8 days a month.
+export const USED_DAYS_PER_30 = { Daily: 30, Weekdays: (30 * 5) / 7, Weekends: (30 * 2) / 7, Occasional: 8 }
+export const usedDaysPer30 = pattern => USED_DAYS_PER_30[pattern] ?? 30
+
+// kWh over 30 days, counting only the days the usage pattern says the appliance runs.
+export const applianceMonthKwh = appliance => estimateDailyKwh(appliance) * usedDaysPer30(appliance.pattern ?? appliance.usagePattern)
+
+// Average kWh per calendar day (comparable with the meter), which is lower than kWh per day of use for non-daily patterns.
+export const applianceAverageDailyKwh = appliance => applianceMonthKwh(appliance) / 30
+
+export const estimateMonthKwh = appliances => appliances.reduce((sum, item) => sum + applianceMonthKwh(item), 0)
+
+// One point per stretch between two meter readings, as average kWh per day so stretches of different length compare fairly.
+// `readings` are oldest first ({ recordedAt, usageKwh }); `usageKwh` is null for the first reading or a new meter, which are skipped.
+// Stretches under an hour are left out as too short to average, like usageFromReadings.
+export function usagePerDay(readings) {
+  const points = []
+  for (let i = 1; i < readings.length; i++) {
+    const to = new Date(readings[i].recordedAt)
+    const from = new Date(readings[i - 1].recordedAt)
+    const days = (to - from) / 86400000
+    const kwh = readings[i].usageKwh
+    if (kwh == null || !(days >= 1 / 24)) continue
+    points.push({ id: readings[i].id ?? readings[i].recordedAt, to, from, days, kwh, perDay: kwh / days })
+  }
+  // Label each bar with its end date; add the time when two bars would share a date.
+  const dateLabel = date => new Intl.DateTimeFormat('en-PH', { month: 'short', day: 'numeric' }).format(date)
+  const counts = points.reduce((map, point) => map.set(dateLabel(point.to), (map.get(dateLabel(point.to)) ?? 0) + 1), new Map())
+  return points.map(point => ({
+    ...point,
+    day: counts.get(dateLabel(point.to)) > 1 ? `${dateLabel(point.to)}, ${new Intl.DateTimeFormat('en-PH', { hour: 'numeric', minute: '2-digit' }).format(point.to)}` : dateLabel(point.to),
+    usage: Number(point.perDay.toFixed(2)),
+  }))
+}
 
 // Average kWh per day between each pair of consecutive meter readings (the real usage the readings show).
 // Readings must be sorted oldest first. Pairs closer than an hour apart are skipped as too noisy to average.

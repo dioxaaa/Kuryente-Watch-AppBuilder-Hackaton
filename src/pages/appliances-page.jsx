@@ -3,7 +3,7 @@ import { AirVent, Fan, Lightbulb, Pencil, Plus, Refrigerator, Search, Tv, Washin
 import { ConfirmModal } from '../components/confirm-modal'
 import { EmptyState } from '../components/empty-state'
 import { PageTitle } from '../components/page-title'
-import { estimateDailyKwh, formatDate, formatPeso, meterDailyUse } from '../utils/energy-utils'
+import { applianceAverageDailyKwh, applianceMonthKwh, estimateDailyKwh, formatDate, formatPeso, meterDailyUse, usedDaysPer30 } from '../utils/energy-utils'
 import { photoToJpegDataUrl } from '../utils/image'
 import { readApplianceLabelOnDevice } from '../utils/offline-ocr'
 
@@ -71,6 +71,8 @@ function ApplianceModal({ appliance, onClose, onSave, rate }) {
   }
 
   const previewDaily = Number(form.watts) > 0 && Number(form.hours) > 0 ? estimateDailyKwh(form) : null
+  const previewDays = usedDaysPer30(form.pattern)
+  const previewMonth = previewDaily !== null ? previewDaily * previewDays : null
   return (
     <div className="modal-backdrop" onMouseDown={event => { if (event.target === event.currentTarget) onClose() }}>
       <section className="confirm-modal appliance-modal" role="dialog" aria-modal="true" aria-labelledby="appliance-modal-title">
@@ -93,11 +95,11 @@ function ApplianceModal({ appliance, onClose, onSave, rate }) {
             </span></p>
           )}
           <div className="reading-preview appliance-preview">
-            <span>Per day</span><strong>{previewDaily !== null ? `${previewDaily.toFixed(2)} kWh` : '—'}</strong>
-            <span>Per 30 days</span><strong>{previewDaily !== null ? `${(previewDaily * 30).toFixed(1)} kWh` : '—'}</strong>
-            <span>Est. monthly cost</span><strong>{previewDaily !== null ? formatPeso(previewDaily * 30 * rate) : '—'}</strong>
+            <span>Per day of use</span><strong>{previewDaily !== null ? `${previewDaily.toFixed(2)} kWh` : '—'}</strong>
+            <span>Per 30 days</span><strong>{previewMonth !== null ? `${previewMonth.toFixed(1)} kWh` : '—'}</strong>
+            <span>Est. monthly cost</span><strong>{previewMonth !== null ? formatPeso(previewMonth * rate) : '—'}</strong>
           </div>
-          <p className="muted-copy"><Info size={14} /> Estimate = watts × hours per day ÷ 1000, at ₱{Number(rate).toFixed(2)}/kWh. Enter the hours you actually use it.</p>
+          <p className="muted-copy"><Info size={14} /> Estimate = watts × hours per day ÷ 1000, times the days it runs ({previewDays % 1 ? previewDays.toFixed(1) : previewDays} of 30 for “{form.pattern || 'Daily'}”), at ₱{Number(rate).toFixed(2)}/kWh. Enter the hours you actually use it.</p>
           {error && <p className="form-error" role="alert">{error}</p>}
           <div className="modal-actions"><button type="button" className="button button-secondary" onClick={onClose}>Cancel</button><button type="submit" className="button button-primary"><Plus size={15} /> {appliance ? 'Save changes' : 'Add appliance'}</button></div>
         </form>
@@ -129,8 +131,9 @@ export function AppliancesPage({ appliances, readings = [], onAdd, onUpdate, onD
   const [modal, setModal] = useState(undefined)
   const [deleteTarget, setDeleteTarget] = useState(null)
   const shown = useMemo(() => appliances.filter(item => (filter === 'All appliances' || item.category === filter) && `${item.name} ${item.category}`.toLowerCase().includes(search.toLowerCase())), [appliances, filter, search])
-  const totalDaily = shown.reduce((sum, appliance) => sum + (appliance.watts * appliance.hours) / 1000, 0)
-  const listDaily = appliances.reduce((sum, appliance) => sum + (appliance.watts * appliance.hours) / 1000, 0)
+  const totalMonth = shown.reduce((sum, appliance) => sum + applianceMonthKwh(appliance), 0)
+  const totalDaily = shown.reduce((sum, appliance) => sum + applianceAverageDailyKwh(appliance), 0)
+  const listDaily = appliances.reduce((sum, appliance) => sum + applianceAverageDailyKwh(appliance), 0)
   const meter = meterDailyUse(readings, new Date(Date.now() - 30 * 86400000))
 
   async function save(item) {
@@ -151,7 +154,7 @@ export function AppliancesPage({ appliances, readings = [], onAdd, onUpdate, onD
     <>
       <PageTitle eyebrow="YOUR HOUSEHOLD" title="My appliances" description="Keep a household inventory and estimate energy use from each rating label." action={<button className="button button-primary" onClick={() => setModal(null)}><Plus size={17} /> Add appliance</button>} />
       <div className="demo-banner"><Zap size={16} /><span><strong>Label estimates.</strong> Rated watts × the hours you entered, as if each appliance ran at full power the whole time. Your real use comes from your meter readings.</span></div>
-      <div className="appliance-overview"><div><span>REGISTERED APPLIANCES</span><strong>{appliances.length}</strong></div><i /><div><span>LABEL ESTIMATE / DAY</span><strong>{totalDaily.toFixed(1)} <small>kWh/day</small></strong></div><i /><div><span>LABEL ESTIMATE / 30 DAYS</span><strong>{formatPeso(totalDaily * 30 * rate)} <small>/ month</small></strong></div></div>
+      <div className="appliance-overview"><div><span>REGISTERED APPLIANCES</span><strong>{appliances.length}</strong></div><i /><div><span>LABEL ESTIMATE / DAY (AVERAGE)</span><strong>{totalDaily.toFixed(1)} <small>kWh/day</small></strong></div><i /><div><span>LABEL ESTIMATE / 30 DAYS</span><strong>{formatPeso(totalMonth * rate)} <small>/ month</small></strong></div></div>
       {appliances.length > 0 && <MeterComparison meter={meter} listDaily={listDaily} rate={rate} />}
       <section className="panel appliances-panel">
         <div className="appliances-toolbar">
@@ -164,7 +167,9 @@ export function AppliancesPage({ appliances, readings = [], onAdd, onUpdate, onD
           <div className="appliance-grid">
             {shown.map(appliance => {
               const Icon = icons[appliance.category] || Lightbulb
-              const daily = appliance.watts * appliance.hours / 1000
+              const daily = estimateDailyKwh(appliance)
+              const month = applianceMonthKwh(appliance)
+              const usedDays = usedDaysPer30(appliance.pattern)
               return (
                 <article className="appliance-card" key={appliance.id}>
                   <div className="appliance-card-top">
@@ -179,7 +184,7 @@ export function AppliancesPage({ appliances, readings = [], onAdd, onUpdate, onD
                   <h3>{appliance.name}</h3>
                   <p>{appliance.brand || (appliance.isSample ? 'Sample appliance' : 'No brand entered')}{appliance.model ? ` · ${appliance.model}` : ''}</p>
                   <div className="appliance-details"><span><Zap size={14} /> {appliance.watts} W rated</span><span>{appliance.hours} hrs/day · {appliance.pattern || 'Daily'}</span></div>
-                  <div className="appliance-estimate"><div><span>Estimated energy</span><strong>{daily.toFixed(2)} <small>kWh/day</small></strong><span className="appliance-cost">≈ {(daily * 30).toFixed(1)} kWh · {formatPeso(daily * 30 * rate)} / 30 days</span></div><div className="mini-bars"><i /><i /><i /><i /><i /><i /><i /></div></div>
+                  <div className="appliance-estimate"><div><span>Estimated energy</span><strong>{daily.toFixed(2)} <small>kWh/day of use</small></strong><span className="appliance-cost">≈ {month.toFixed(1)} kWh · {formatPeso(month * rate)} / 30 days{usedDays !== 30 ? ` (${usedDays % 1 ? usedDays.toFixed(1) : usedDays} days of use)` : ''}</span></div><div className="mini-bars"><i /><i /><i /><i /><i /><i /><i /></div></div>
                 </article>
               )
             })}
