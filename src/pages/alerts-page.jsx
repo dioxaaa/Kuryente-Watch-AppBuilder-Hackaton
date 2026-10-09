@@ -1,8 +1,10 @@
 import { useMemo, useState } from 'react'
-import { Bell, BellRing, Check, CheckCheck, Clock3, Info, RefreshCw, ScanSearch, ShieldAlert, Sparkles, X } from 'lucide-react'
+import { Bell, BellRing, Check, CheckCheck, ChevronDown, ChevronUp, Clock3, Info, LineChart, RefreshCw, ScanSearch, ShieldAlert, Sparkles, X, Zap } from 'lucide-react'
 import { PageTitle } from '../components/page-title'
 import { EmptyState } from '../components/empty-state'
 import { formatWhen } from '../utils/alerts'
+import { alertImpact } from '../utils/alert-impact'
+import { DeviceChart } from '../components/device-chart'
 
 // The "explain with AI" part of an alert card. The explanation is saved by the server, so reopening the page is instant.
 function AiExplanation({ alert, onExplain }) {
@@ -29,8 +31,10 @@ function AiExplanation({ alert, onExplain }) {
   )
 }
 
-export function AlertsPage({ alerts, loaded, offline, onUpdate, onExplain, onScan, onToast }) {
+export function AlertsPage({ alerts, appliances = [], rate = 0, loaded, offline, onUpdate, onExplain, onScan, onToast }) {
   const [filter, setFilter] = useState('All alerts')
+  const [chartOpen, setChartOpen] = useState(() => new Set())
+  const toggleChart = id => setChartOpen(open => { const next = new Set(open); next.has(id) ? next.delete(id) : next.add(id); return next })
   const [scanning, setScanning] = useState(false)
   async function scan() { setScanning(true); try { await onScan() } finally { setScanning(false) } }
   const visible = useMemo(() => alerts.filter(alert => filter === 'All alerts' || (filter === 'Unread' ? !alert.read : alert.read)), [alerts, filter])
@@ -56,7 +60,8 @@ export function AlertsPage({ alerts, loaded, offline, onUpdate, onExplain, onSca
         <div className="alerts-toolbar"><div className="filter-tabs alert-tabs">{['All alerts', 'Unread', 'Read'].map(item => <button key={item} className={filter === item ? 'filter-active' : ''} onClick={() => setFilter(item)}>{item}{item === 'Unread' && unread > 0 && <span className="tab-count">{unread}</span>}</button>)}</div><span className="muted-copy">{visible.length} alerts</span></div>
         {visible.length ? <div className="alert-list">{visible.map(alert => {
           const Icon = alert.severity === 'high' ? ShieldAlert : alert.severity === 'info' ? Clock3 : BellRing
-          return <article className={`alert-card ${!alert.read ? 'alert-unread' : ''}`} key={alert.id}><span className={`alert-icon alert-icon-${alert.severity}`}><Icon size={19} /></span><div className="alert-content"><div className="alert-title-row"><h3>{alert.title}</h3><span className={`badge ${alert.severity === 'high' ? 'badge-danger' : alert.severity === 'warning' ? 'badge-warning' : 'badge-neutral'}`}>{alert.severity}</span>{!alert.read && <span className="unread-label"><i /> New</span>}</div><span className="alert-context">{alert.context}</span><p>{alert.description}</p><AiExplanation alert={alert} onExplain={onExplain} /><div className="alert-meta"><span><Clock3 size={13} /> {formatWhen(alert.happenedAt)}</span></div></div><div className="alert-actions">{!alert.read && <button className="icon-button" onClick={() => update(alert, { read: true }, 'Alert marked as read.')} aria-label="Mark as read"><Check size={16} /></button>}<button className="icon-button" onClick={() => update(alert, { dismissed: true }, 'Alert dismissed.')} aria-label="Dismiss alert"><X size={17} /></button></div></article>
+          const impact = alertImpact(alert, appliances, rate)
+          return <article className={`alert-card ${!alert.read ? 'alert-unread' : ''}`} key={alert.id}><span className={`alert-icon alert-icon-${alert.severity}`}><Icon size={19} /></span><div className="alert-content"><div className="alert-title-row"><h3>{alert.title}</h3><span className={`badge ${alert.severity === 'high' ? 'badge-danger' : alert.severity === 'warning' ? 'badge-warning' : 'badge-neutral'}`}>{alert.severity}</span>{!alert.read && <span className="unread-label"><i /> New</span>}</div><span className="alert-context">{alert.context}</span>{impact.moneyText && <span className="alert-impact"><Zap size={12} /> {impact.name} · about {impact.extraKwh < 1 ? impact.extraKwh.toFixed(2) : impact.extraKwh.toFixed(1)} kWh extra · <b>{impact.moneyText}</b></span>}<p>{alert.description}</p><button className="text-button alert-chart-toggle" aria-expanded={chartOpen.has(alert.id)} onClick={() => toggleChart(alert.id)}><LineChart size={13} /> {chartOpen.has(alert.id) ? 'Hide chart' : 'Show on chart'} {chartOpen.has(alert.id) ? <ChevronUp size={13} /> : <ChevronDown size={13} />}</button>{chartOpen.has(alert.id) && <DeviceChart device={alert.device} alertId={alert.id} compact />}<AiExplanation alert={alert} onExplain={onExplain} /><div className="alert-meta"><span><Clock3 size={13} /> {formatWhen(alert.happenedAt)}</span></div></div><div className="alert-actions">{!alert.read && <button className="icon-button" onClick={() => update(alert, { read: true }, 'Alert marked as read.')} aria-label="Mark as read"><Check size={16} /></button>}<button className="icon-button" onClick={() => update(alert, { dismissed: true }, 'Alert dismissed.')} aria-label="Dismiss alert"><X size={17} /></button></div></article>
         })}</div> : <EmptyState title={emptyState.title} description={emptyState.description} action={<Bell size={18} className="empty-action-icon" />} />}
       </section>
     </>

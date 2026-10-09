@@ -30,6 +30,7 @@ export function getReadings(db, device, { from, to, limit } = {}) {
     WHERE device = ? AND timestamp >= ? AND timestamp <= ? ORDER BY timestamp LIMIT ?`)
     .all(device, from ?? '', to ?? '\uffff', limit ?? -1)
 }
+export const latestReadingTime = (db, device) => db.prepare('SELECT MAX(timestamp) t FROM readings WHERE device = ?').get(device)?.t ?? null
 export const countReadings = (db, device) => db.prepare('SELECT COUNT(*) n FROM readings WHERE device = ?').get(device).n
 
 // ---------- baselines ----------

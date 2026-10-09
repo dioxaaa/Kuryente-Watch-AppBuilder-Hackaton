@@ -32,6 +32,7 @@ export function usageFromReadings(readings) {
       day: new Intl.DateTimeFormat('en-PH', { month: 'short', day: 'numeric' }).format(new Date(readings[i].date)),
       usage: Number((used / days).toFixed(1)),
       date: new Date(readings[i].date),
+      from: new Date(readings[i - 1].date), // when this stretch started
     })
   }
   return points

@@ -846,3 +846,78 @@ h1, h2, h3, p { margin-top: 0; }
 .ocr-result { display: flex; align-items: center; flex-wrap: wrap; gap: 5px; margin: 9px 0 0; color: #467344; font-size: 10px; line-height: 1.45; }
 .ocr-result svg { flex: 0 0 auto; }
 [data-theme="dark"] .ocr-result { color: #7fd29d; }
+/* ---------- Device chart: power vs. learned normal ---------- */
+.device-chart-panel { margin-bottom: 15px; padding-bottom: 14px; }
+.device-chart-heading { margin-bottom: 4px; }
+.device-chart-plot { width: 100%; height: 240px; margin-top: 8px; }
+.device-chart-plot.device-chart-compact { height: 190px; }
+.device-chart-note { display: grid; min-height: 120px; place-items: center; color: #89938c; font-size: 10px; text-align: center; }
+.device-legend { display: flex; flex-wrap: wrap; gap: 6px 16px; margin: 6px 0 0; padding: 0; color: #8a958e; font-size: 9px; list-style: none; }
+.device-legend li { display: inline-flex; align-items: center; gap: 6px; }
+.device-legend i { display: inline-block; width: 16px; height: 8px; border-radius: 2px; }
+.legend-band { background: rgba(39, 163, 107, .22); }
+.legend-avg { height: 3px !important; background: #1d7a52; }
+.legend-flag { height: 3px !important; background: #d9534f; }
+.legend-raw { height: 2px !important; background: #9aa89f; opacity: .45; }
+.device-summary { margin: 10px 0 0; padding-top: 10px; border-top: 1px solid #f0f2f0; color: #5d6b61; font-size: 10px; line-height: 1.55; }
+.device-tooltip { display: flex; flex-direction: column; gap: 3px; padding: 9px 11px; border: 1px solid #e6ebe6; border-radius: 12px; background: #fff; box-shadow: 0 8px 24px #102c1917; color: #6b786f; font-size: 10px; }
+.device-tooltip strong { color: #2c3a31; font-size: 10px; }
+.device-tooltip b { margin-left: 4px; color: #2c3a31; }
+.device-tooltip-flag { font-style: normal; font-weight: 700; }
+.flag-high, .flag-spike { color: #b84b46; }
+.flag-low { color: #ac7631; }
+.alert-chart-toggle { display: inline-flex; align-items: center; gap: 5px; margin: 0 0 8px; font-size: 10px; }
+.alert-content .device-chart { max-width: 730px; margin: 0 0 12px; padding: 10px 12px 12px; border: 1px solid #e9ede9; border-radius: 9px; background: #fbfcfb; }
+
+/* ---------- Alerts tied to appliances and money ---------- */
+.alert-impact { display: inline-flex; align-items: center; gap: 5px; margin: 7px 0 0; padding: 4px 8px; border-radius: 6px; color: #8b5a1d; background: #fff4e3; font-size: 10px; }
+.alert-impact b { font-weight: 700; }
+.preview-alert-side { display: flex; flex-direction: column; align-items: flex-end; gap: 5px; }
+.money-chip { padding: 3px 7px; border-radius: 5px; color: #8b5a1d; background: #fff4e3; font-size: 10px; font-weight: 700; white-space: nowrap; }
+.preview-alert > span:nth-child(2) small + small { margin-top: 1px; }
+.impact-total { margin: 14px 0 0; padding-top: 11px; border-top: 1px solid #f0f2f0; color: #7a867d; font-size: 9px; line-height: 1.55; }
+.impact-total strong { color: #4c5b51; }
+
+/* ---------- "Why is my bill high?" card ---------- */
+.bill-card { margin-bottom: 15px; background: linear-gradient(110deg, #fbfdfb, #f3faf4); }
+.bill-card-head { display: flex; align-items: flex-start; gap: 12px; }
+.bill-card-icon { display: grid; width: 36px; height: 36px; flex: 0 0 36px; place-items: center; border-radius: 10px; color: #fff; background: var(--green); }
+.bill-card-head .eyebrow { margin: 0 0 5px; font-size: 8px; }
+.bill-card-head h2 { margin: 0; color: #243129; font: 700 15px Manrope, sans-serif; letter-spacing: -.2px; }
+.bill-card-head p { margin: 4px 0 0; color: #929c94; font-size: 10px; }
+.bill-card-body { display: grid; grid-template-columns: minmax(0, 1.15fr) minmax(0, 1fr); gap: 18px; margin-top: 14px; }
+.bill-facts { display: flex; flex-direction: column; gap: 10px; margin: 0; padding: 0; list-style: none; }
+.bill-facts li { display: flex; align-items: flex-start; gap: 9px; color: #4f5e53; font-size: 10.5px; line-height: 1.55; }
+.bill-fact-muted { color: #97a199 !important; }
+.bill-fact-icon { display: grid; width: 22px; height: 22px; flex: 0 0 22px; place-items: center; border-radius: 6px; }
+.bill-fact-meter { color: #2f7ab0; background: #e8f2fa; }
+.bill-fact-appliance { color: #27855a; background: #e6f4ec; }
+.bill-fact-alert { color: #ac7631; background: #fff4e3; }
+.bill-answer .ai-box { max-width: none; }
+.bill-answer .ai-box p { margin: 6px 0 4px; color: #4f5e53; font-size: 10.5px; line-height: 1.6; }
+.bill-answer .ai-box-loading { margin: 0; }
+.bill-answer .ai-error { margin: 8px 0 0; color: #b84b46; font-size: 9px; line-height: 1.5; }
+.bill-ask { display: flex; height: 100%; min-height: 96px; flex-direction: column; align-items: flex-start; justify-content: center; gap: 10px; padding: 12px 14px; border: 1px dashed #cfe3d3; border-radius: 9px; background: rgba(255, 255, 255, .6); }
+.bill-ask p { margin: 0; color: #5d6b61; font-size: 10.5px; }
+@media (max-width: 860px) {
+  .bill-card-body { grid-template-columns: minmax(0, 1fr); gap: 14px; }
+  .device-chart-plot { height: 210px; }
+  .preview-alert { align-items: flex-start; }
+}
+
+/* ---------- dark mode for the new pieces ---------- */
+[data-theme="dark"] .bill-card { background: linear-gradient(110deg, #151e18, #16251c); }
+[data-theme="dark"] .bill-card-head h2 { color: #e5eee8; }
+[data-theme="dark"] .bill-facts li, [data-theme="dark"] .bill-answer .ai-box p, [data-theme="dark"] .bill-ask p { color: #b8c9bd; }
+[data-theme="dark"] .bill-fact-muted { color: #6f7f74 !important; }
+[data-theme="dark"] .bill-ask { border-color: #2c4234; background: rgba(21, 30, 24, .6); }
+[data-theme="dark"] .bill-fact-meter { color: #8cc3ec; background: rgba(47, 122, 176, .18); }
+[data-theme="dark"] .bill-fact-appliance { color: #7fd29d; background: rgba(66, 170, 107, .16); }
+[data-theme="dark"] .bill-fact-alert, [data-theme="dark"] .alert-impact, [data-theme="dark"] .money-chip { color: #f0c58a; background: rgba(214, 154, 69, .16); }
+[data-theme="dark"] .device-summary, [data-theme="dark"] .impact-total { border-color: #263229; color: #a9b8ae; }
+[data-theme="dark"] .impact-total strong { color: #d4e0d8; }
+[data-theme="dark"] .device-chart .recharts-cartesian-grid line { stroke: #263229; }
+[data-theme="dark"] .device-chart .recharts-text { fill: #8a998f; }
+[data-theme="dark"] .alert-content .device-chart { border-color: #263229; background: #121a15; }
+[data-theme="dark"] .device-tooltip { border-color: #2c3a31; background: #1a251e; color: #a9b8ae; box-shadow: 0 8px 24px rgba(0, 0, 0, .45); }
+[data-theme="dark"] .device-tooltip strong, [data-theme="dark"] .device-tooltip b { color: #e5eee8; }

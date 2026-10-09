@@ -13,7 +13,7 @@ const TITLES = {
   'sustained-low': label => `${label} drew much less power than usual`,
 }
 
-const duration = minutes => {
+export const duration = minutes => {
   const m = Math.round(Number(minutes) || 0)
   if (m < 60) return `${m} min`
   const h = Math.floor(m / 60), rest = m % 60
@@ -22,7 +22,8 @@ const duration = minutes => {
 
 // `devices` is the list from /api/devices, used to show friendly names such as "Family refrigerator".
 export function toViewAlert(raw, devices = []) {
-  const label = devices.find(d => d.name === raw.device)?.label || humanize(raw.device)
+  const device = devices.find(d => d.name === raw.device)
+  const label = device?.label || humanize(raw.device)
   const title = (TITLES[raw.type] ?? (name => `Unusual usage on ${name.toLowerCase()}`))(label)
   const length = raw.type === 'spike' ? '' : ` · ${duration(raw.durationMin)}`
   return {
@@ -34,6 +35,15 @@ export function toViewAlert(raw, devices = []) {
     description: raw.explanation ?? '',
     severity: raw.severity === 'high' ? 'high' : 'warning',
     happenedAt: new Date(raw.start),
+    // The detector's numbers, kept so the dashboard can connect the alert to an appliance and a cost.
+    deviceLabel: label,
+    deviceCategory: device?.category ?? null,
+    durationMin: Number(raw.durationMin) || 0,
+    observedWatts: Number(raw.observedWatts) || 0,
+    expectedWatts: Number(raw.expectedWatts) || 0,
+    peakWatts: Number(raw.peakWatts) || 0,
+    ratio: Number(raw.ratio) || 0,
+    excessKwh: Number(raw.excessKwh) || 0,
     read: !!raw.read,
     dismissed: !!raw.dismissed,
     aiExplanation: raw.aiExplanation ?? null,

@@ -1,29 +1,10 @@
 import { useEffect, useRef, useState } from 'react'
 import { MessageCircle, Send, Sparkles, X } from 'lucide-react'
-import { estimateDailyKwh } from '../utils/energy-utils'
+import { buildAssistantContext } from '../utils/assistant-context'
 import { fetchAiRecommendation } from '../utils/api'
 
 const quickQuestions = ['Why is my bill high?', 'Which appliance uses the most?', 'How can I save electricity?']
 const greeting = "Hi! I'm your energy assistant. Ask me about your electricity usage and I'll explain it in simple words."
-
-function buildContext({ readings, appliances, alerts, rate, monthKwh }) {
-  const latest = readings[readings.length - 1]
-  const previous = readings[readings.length - 2]
-  return {
-    rate,
-    monthKwh,
-    latest: latest && { kwh: latest.kwh, date: latest.date, source: latest.source },
-    previousKwh: previous?.kwh,
-    appliances: appliances.map(a => ({
-      name: a.name,
-      category: a.category,
-      watts: a.watts,
-      hoursPerDay: a.hours,
-      monthlyKwh: Math.round(estimateDailyKwh(a) * 30 * 10) / 10,
-    })),
-    alerts: alerts.slice(0, 5).map(a => ({ title: a.title, context: a.context, detail: a.description })),
-  }
-}
 
 export function AssistantWidget(props) {
   const [open, setOpen] = useState(false)
@@ -60,22 +41,14 @@ export function AssistantWidget(props) {
           matchedAppliance.hours
         )
         reply = resData.insight || resData.recommendation
-      } else if (props.appliances && props.appliances.length > 0) {
-        // Option B: Fallback to top appliance recommendation if no specific appliance named
-        const topAppliance = props.appliances[0]
-        const resData = await fetchAiRecommendation(
-          topAppliance.name,
-          topAppliance.watts,
-          topAppliance.hours
-        )
-        reply = resData.insight || resData.recommendation
+        if (!reply) throw new Error(resData.error || 'Something went wrong. Please try again.')
       } else {
-        // Fallback general route
+        // Everything else ("Why is my bill high?", saving tips, ...) is answered from the real meter readings, appliances and alerts
         const history = messages.filter(m => !m.error).map(({ role, content }) => ({ role, content }))
         const res = await fetch('/api/assistant', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ question, history, context: buildContext(props) }),
+          body: JSON.stringify({ question, history, context: buildAssistantContext(props) }),
         })
         const data = await res.json().catch(() => ({}))
         if (!res.ok) throw new Error(data.error || 'Something went wrong. Please try again.')

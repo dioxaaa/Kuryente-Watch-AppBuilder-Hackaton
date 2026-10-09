@@ -1,7 +1,7 @@
 // REST API over the local SQLite database. Runs on this machine only.
 import express from 'express'
 import * as repo from './repository.js'
-import { trainDevice, scanDevice, scanAllDevices } from './service.js'
+import { trainDevice, scanDevice, scanAllDevices, deviceChart } from './service.js'
 import { askAssistant } from './assistant.js'
 import { explainAlert } from './alert-explainer.js'
 import { readMeterPhoto } from './meter-ocr.js'
@@ -39,6 +39,8 @@ export function createApp(db, { chat } = {}) {
   app.post('/api/devices/:name/train', wrap(req => trainDevice(db, req.params.name, range(req.body ?? {}))))
   app.post('/api/devices/:name/scan', wrap(req => scanDevice(db, req.params.name, range(req.body ?? {}), req.body?.options)))
   app.post('/api/scan', wrap(() => scanAllDevices(db)))
+  // Readings + learned normal band + flagged events for one device, ready to draw. ?alertId=… centres it on an alert; else ?hours=24.
+  app.get('/api/devices/:name/chart', wrap(req => deviceChart(db, req.params.name, { from: req.query.from, to: req.query.to, alertId: req.query.alertId, hours: req.query.hours })))
   app.get('/api/devices/:name/baseline', wrap(req => {
     const b = repo.getBaseline(db, req.params.name)
     if (!b) { const e = new Error('No baseline yet.'); e.status = 404; throw e }

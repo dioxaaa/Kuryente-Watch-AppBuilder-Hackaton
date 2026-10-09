@@ -5,16 +5,21 @@ import { UsageChart } from '../components/usage-chart'
 import { EmptyState } from '../components/empty-state'
 import { estimateDailyKwh, estimateMonthKwh, formatDate, formatPeso, usageFromReadings } from '../utils/energy-utils'
 import { AssistantWidget } from '../components/assistant-widget'
+import { BillCard } from '../components/bill-card'
+import { DeviceChart } from '../components/device-chart'
+import { alertImpact, kwhText, pesoText, totalImpact } from '../utils/alert-impact'
 
 const todayLabel = () => new Intl.DateTimeFormat('en-PH', { weekday: 'long', month: 'long', day: 'numeric' }).format(new Date()).toUpperCase()
 const greeting = () => { const hour = new Date().getHours(); return hour < 12 ? 'Good morning' : hour < 18 ? 'Good afternoon' : 'Good evening' }
 
-export function DashboardPage({ readings, alerts, appliances, rate, household, onNavigate }) {
+export function DashboardPage({ readings, alerts, alertsLoaded, appliances, rate, household, onNavigate }) {
   const current = readings[readings.length - 1]
   const previous = readings[readings.length - 2]
   const delta = current && previous && !current.reset ? current.kwh - previous.kwh : 0
   const estimatedMonthKwh = Math.round(estimateMonthKwh(appliances))
   const freshAlerts = alerts.filter(alert => !alert.read).slice(0, 2)
+  const impact = totalImpact(alerts, appliances, rate)
+  const chartAlert = alerts[0] // newest first, so the chart opens on the latest alert
   const weekly = usageFromReadings(readings).slice(-7)
   const weeklyAverage = weekly.length ? weekly.reduce((sum, item) => sum + item.usage, 0) / weekly.length : 0
   const peak = weekly.reduce((best, item) => (!best || item.usage > best.usage ? item : best), null)
@@ -22,13 +27,14 @@ export function DashboardPage({ readings, alerts, appliances, rate, household, o
   return (
     <>
       <PageTitle eyebrow={todayLabel()} title={`${greeting()}, ${household || 'there'} 👋`} description="Here’s your household energy snapshot." action={<button className="button button-primary" onClick={() => onNavigate('meter')}><Zap size={17} /> Add meter reading</button>} />
-      <div className="demo-banner"><Sparkles size={16} /><span><strong>Your readings, appliances and settings are saved on this computer.</strong> Alerts below are still sample data.</span><button onClick={() => onNavigate('about')}>About this prototype <ArrowRight size={14} /></button></div>
+      <div className="demo-banner"><Sparkles size={16} /><span><strong>Your readings, appliances and settings are saved on this computer.</strong> Alerts come from the local detector and are not a diagnosis.</span><button onClick={() => onNavigate('about')}>About this prototype <ArrowRight size={14} /></button></div>
       <section className="stats-grid" aria-label="Usage overview">
         <StatCard label="Monthly estimate" value={estimatedMonthKwh} unit=" kWh" note="From your appliance list" icon={Zap} />
         <StatCard label="Estimated bill" value={formatPeso(estimatedMonthKwh * rate)} unit="" note={`At ₱${rate.toFixed(2)} / kWh`} icon={Gauge} tone="amber" />
         <StatCard label="Latest meter reading" value={current?.kwh.toLocaleString() ?? '—'} unit={current ? ' kWh' : ''} note={current ? `${current.source} · ${formatDate(current.date)}` : 'No readings yet'} icon={Droplets} tone="blue" />
         <StatCard label="Since previous reading" value={previous && !current.reset ? delta.toFixed(1) : '—'} unit={previous && !current.reset ? ' kWh' : ''} note={previous ? (current.reset ? 'New meter started' : `Since ${formatDate(previous.date)}`) : 'Add another reading'} icon={Clock3} tone="purple" />
       </section>
+      <BillCard readings={readings} appliances={appliances} alerts={alerts} rate={rate} monthKwh={estimatedMonthKwh} />
       <div className="dashboard-grid">
         <section className="panel chart-panel">
           <div className="panel-heading"><div><h2>Recent usage</h2><p>Average kWh per day between your meter readings</p></div><button className="text-button" onClick={() => onNavigate('history')}>Full history <ArrowRight size={15} /></button></div>
@@ -53,10 +59,15 @@ export function DashboardPage({ readings, alerts, appliances, rate, household, o
           <button className="panel-bottom-link" onClick={() => onNavigate('appliances')}><Plus size={15} /> Manage appliances <ArrowRight size={15} /></button>
         </section>
       </div>
+      {alertsLoaded && <section className="panel device-chart-panel"><DeviceChart device={chartAlert?.device} alertId={chartAlert?.id} heading /></section>}
       <div className="dashboard-grid lower-grid">
         <section className="panel alerts-preview">
           <div className="panel-heading"><div><h2>Needs your attention</h2><p>From your device readings · not a diagnosis</p></div><button className="text-button" onClick={() => onNavigate('alerts')}>View all <ArrowRight size={15} /></button></div>
-          {freshAlerts.length ? freshAlerts.map(alert => <div className="preview-alert" key={alert.id}><span className={`severity-marker severity-${alert.severity}`}><Zap size={16} /></span><span><strong>{alert.title}</strong><small>{alert.context}</small></span><span className="badge badge-warning">NEW</span></div>) : <p className="muted-copy">You’re all caught up.</p>}
+          {freshAlerts.length ? freshAlerts.map(alert => {
+            const item = alertImpact(alert, appliances, rate)
+            return <div className="preview-alert" key={alert.id}><span className={`severity-marker severity-${alert.severity}`}><Zap size={16} /></span><span><strong>{item.headline}</strong><small>{item.detail}</small><small>{alert.context}</small></span><span className="preview-alert-side">{item.moneyText && <b className="money-chip">{item.moneyText}</b>}<span className="badge badge-warning">NEW</span></span></div>
+          }) : <p className="muted-copy">You’re all caught up.</p>}
+          {impact.extraKwh > 0 && <p className="impact-total">Flagged so far: about <strong>{kwhText(impact.extraKwh)}</strong> extra, <strong>≈ {pesoText(impact.extraPesos)}</strong> at ₱{rate.toFixed(2)}/kWh. An estimate from the detector, not a measured bill.</p>}
         </section>
         <section className="panel insight-panel"><div className="insight-icon"><Sparkles size={19} /></div><div><span className="eyebrow">A QUICK INSIGHT</span>{biggest ? <><h2>{biggest.name} is your biggest estimated energy user</h2><p>About {(estimateDailyKwh(biggest) * 30).toFixed(0)} kWh a month, worked out from its rated watts × hours of use. Actual usage may vary with appliance behavior and conditions.</p></> : <><h2>Add your appliances</h2><p>Add what you use at home and we will show which one costs the most.</p></>}<button className="text-button" onClick={() => onNavigate('appliances')}>Explore appliances <ArrowRight size={15} /></button></div></section>
       </div>

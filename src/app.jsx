@@ -188,13 +188,13 @@ export default function App() {
       case 'history':
         return <HistoryPage readings={readings} rate={Number(settings.rate) || 0} onToast={toastMessage} />
       case 'alerts':
-        return <AlertsPage alerts={alerts.filter(alert => !alert.dismissed)} loaded={alertsLoaded} offline={serverStatus === 'offline'} onUpdate={updateAlert} onExplain={explainAlert} onScan={scanForAlerts} onToast={toastMessage} />
+        return <AlertsPage alerts={alerts.filter(alert => !alert.dismissed)} appliances={appliances} rate={Number(settings.rate) || 0} loaded={alertsLoaded} offline={serverStatus === 'offline'} onUpdate={updateAlert} onExplain={explainAlert} onScan={scanForAlerts} onToast={toastMessage} />
       case 'settings':
         return <SettingsPage settings={settings} onSave={saveSettings} onToast={toastMessage} />
       case 'admin':
         return <AdminPage onNavigate={navigate} />
       default:
-        return <DashboardPage readings={readings} alerts={alerts.filter(alert => !alert.dismissed)} appliances={appliances} rate={Number(settings.rate) || 0} household={settings.household} onNavigate={navigate} />
+        return <DashboardPage readings={readings} alerts={alerts.filter(alert => !alert.dismissed)} alertsLoaded={alertsLoaded} appliances={appliances} rate={Number(settings.rate) || 0} household={settings.household} onNavigate={navigate} />
     }
   }, [activePage, readings, appliances, alerts, alertsLoaded, serverStatus, settings])
 
