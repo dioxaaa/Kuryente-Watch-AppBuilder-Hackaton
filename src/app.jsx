@@ -131,6 +131,16 @@ export default function App() {
     try { await api.patch(`/alerts/${encodeURIComponent(id)}`, changes) }
     catch (err) { toastMessage(err.message); loadAlerts() }
   }
+  // Runs the detector over every device's new readings, then reloads the alert list.
+  const scanForAlerts = async () => {
+    try {
+      const result = await api.post('/scan')
+      await loadAlerts()
+      toastMessage(result.scanned === 0 ? 'No devices with a learned baseline yet. Run npm run seed to load demo data.'
+        : result.newAlerts > 0 ? `Scan finished: ${result.newAlerts} new alert${result.newAlerts === 1 ? '' : 's'} found.`
+        : 'Scan finished: nothing new or unusual.')
+    } catch (err) { toastMessage(err.message) }
+  }
   // Asks the local AI to explain one alert. Throws the server's message so the card can show it.
   const explainAlert = async (id, refresh = false) => {
     const { explanation, model } = await api.post(`/alerts/${encodeURIComponent(id)}/explain`, { refresh })
@@ -178,7 +188,7 @@ export default function App() {
       case 'history':
         return <HistoryPage readings={readings} rate={Number(settings.rate) || 0} onToast={toastMessage} />
       case 'alerts':
-        return <AlertsPage alerts={alerts.filter(alert => !alert.dismissed)} loaded={alertsLoaded} offline={serverStatus === 'offline'} onUpdate={updateAlert} onExplain={explainAlert} onToast={toastMessage} />
+        return <AlertsPage alerts={alerts.filter(alert => !alert.dismissed)} loaded={alertsLoaded} offline={serverStatus === 'offline'} onUpdate={updateAlert} onExplain={explainAlert} onScan={scanForAlerts} onToast={toastMessage} />
       case 'settings':
         return <SettingsPage settings={settings} onSave={saveSettings} onToast={toastMessage} />
       case 'admin':

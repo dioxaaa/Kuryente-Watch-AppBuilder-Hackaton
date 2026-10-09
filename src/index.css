@@ -839,3 +839,5 @@ h1, h2, h3, p { margin-top: 0; }
 [data-theme="dark"] .alert-content .ai-box p { color: #b8c9bd; }
 [data-theme="dark"] .ai-button { color: #7fd29d; }
 [data-theme="dark"] .alert-content .ai-error { color: #e48a86; }
+
+.title-actions { display: flex; flex-wrap: wrap; gap: 8px; }

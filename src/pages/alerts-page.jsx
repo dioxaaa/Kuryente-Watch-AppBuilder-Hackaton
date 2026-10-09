@@ -1,5 +1,5 @@
 import { useMemo, useState } from 'react'
-import { Bell, BellRing, Check, CheckCheck, Clock3, Info, RefreshCw, ShieldAlert, Sparkles, X } from 'lucide-react'
+import { Bell, BellRing, Check, CheckCheck, Clock3, Info, RefreshCw, ScanSearch, ShieldAlert, Sparkles, X } from 'lucide-react'
 import { PageTitle } from '../components/page-title'
 import { EmptyState } from '../components/empty-state'
 import { formatWhen } from '../utils/alerts'
@@ -29,8 +29,10 @@ function AiExplanation({ alert, onExplain }) {
   )
 }
 
-export function AlertsPage({ alerts, loaded, offline, onUpdate, onExplain, onToast }) {
+export function AlertsPage({ alerts, loaded, offline, onUpdate, onExplain, onScan, onToast }) {
   const [filter, setFilter] = useState('All alerts')
+  const [scanning, setScanning] = useState(false)
+  async function scan() { setScanning(true); try { await onScan() } finally { setScanning(false) } }
   const visible = useMemo(() => alerts.filter(alert => filter === 'All alerts' || (filter === 'Unread' ? !alert.read : alert.read)), [alerts, filter])
   function update(alert, patch, message) {
     onUpdate(alert.id, patch)
@@ -45,10 +47,10 @@ export function AlertsPage({ alerts, loaded, offline, onUpdate, onExplain, onToa
         ? { title: 'Can’t reach the local server', description: 'Start it with npm run server, then open this page again.' }
         : !loaded
           ? { title: 'Loading alerts…', description: 'Checking the local database.' }
-          : { title: 'Nothing unusual found', description: 'The detector has not flagged anything in your device readings. To try the demo, run npm run seed and reopen this page.' }
+          : { title: 'Nothing unusual found', description: 'The detector has not flagged anything in your device readings. Press Scan now to check your newest readings, or run npm run seed to load demo data.' }
   return (
     <>
-      <PageTitle eyebrow="HOUSEHOLD NOTIFICATIONS" title="Alerts" description="Unusual usage found by the local detector in your device readings, with a plain-language explanation from the on-device AI." action={<button className="button button-secondary" disabled={!unread} onClick={() => alerts.filter(alert => !alert.read).forEach(alert => onUpdate(alert.id, { read: true }))}><CheckCheck size={16} /> Mark all read</button>} />
+      <PageTitle eyebrow="HOUSEHOLD NOTIFICATIONS" title="Alerts" description="Unusual usage found by the local detector in your device readings, with a plain-language explanation from the on-device AI." action={<div className="title-actions"><button className="button button-primary" disabled={scanning || offline} onClick={scan}><ScanSearch size={16} /> {scanning ? 'Scanning…' : 'Scan now'}</button><button className="button button-secondary" disabled={!unread} onClick={() => alerts.filter(alert => !alert.read).forEach(alert => onUpdate(alert.id, { read: true }))}><CheckCheck size={16} /> Mark all read</button></div>} />
       <div className="demo-banner"><Info size={16} /><span><strong>Found by the detector.</strong> Each device is compared with its own normal pattern. An unusual signal is not a diagnosis of a faulty appliance.</span></div>
       <section className="panel alerts-panel">
         <div className="alerts-toolbar"><div className="filter-tabs alert-tabs">{['All alerts', 'Unread', 'Read'].map(item => <button key={item} className={filter === item ? 'filter-active' : ''} onClick={() => setFilter(item)}>{item}{item === 'Unread' && unread > 0 && <span className="tab-count">{unread}</span>}</button>)}</div><span className="muted-copy">{visible.length} alerts</span></div>
