@@ -1,5 +1,8 @@
 // Built-in assistant used when the local Ollama model cannot be reached (deployed site, phone, offline).
 // It only states what can be worked out from the household data sent by the widget, so it never invents numbers.
+import { alertImpact, kwhText, pesoText } from './alert-impact.js'
+import { duration } from './alerts.js'
+
 const peso = n => `₱${Math.round(n).toLocaleString('en-PH')}`
 const num = value => (Number.isFinite(Number(value)) ? Number(value) : null)
 
@@ -84,4 +87,27 @@ export function applianceTip({ applianceName, category, ratedWatts, hoursPerDay 
   const cost = num(rate) ? `, about ${peso(dailyKwh * 30 * rate)} a month` : ''
   const usage = dailyKwh > 0 ? `Your ${name} uses about ${dailyKwh.toFixed(2)} kWh a day${cost}.` : `Add the hours you use your ${name} each day to estimate its cost.`
   return `${usage} ${tipFor({ name, category })}`
+}
+
+const watts = n => `${Math.round(Number(n) || 0)} W`
+const days = n => (Number(n) >= 1.5 ? `the last ${Math.round(Number(n))} days` : 'the last day')
+
+// Plain-language explanation of one alert (as shaped by toViewAlert), used when the local AI cannot answer.
+export function offlineExplanation(alert, { appliances = [], rate } = {}) {
+  const impact = alertImpact(alert, appliances, rate)
+  const extra = impact.extraKwh > 0 ? ` That is about ${kwhText(impact.extraKwh)} extra${impact.extraPesos > 0 ? `, roughly ${pesoText(impact.extraPesos)} at your rate` : ''}.` : ''
+
+  if (alert.type === 'usage-jump') {
+    const top = rankedAppliances({ appliances: appliances.map(a => ({ ...a, hoursPerDay: a.hoursPerDay ?? a.hours })) }).slice(0, 2).map(a => a.name)
+    const check = top.length ? `your biggest users first: ${top.join(' and ')}` : 'big users first, such as an air conditioner, refrigerator or water heater'
+    return `Your whole household used about ${alert.observedKwhPerDay} kWh a day over ${days(alert.days)}, versus your usual ${alert.expectedKwhPerDay} kWh a day (${alert.ratio}× normal).${extra} The meter cannot tell which appliance caused it, so check ${check}. Today, make sure nothing was left running, like an aircon on all night.`
+  }
+  const tip = tipFor({ name: impact.appliance?.name ?? alert.deviceLabel, category: impact.appliance?.category ?? alert.deviceCategory })
+  if (alert.type === 'spike') {
+    return `${impact.name} briefly reached ${watts(alert.peakWatts)}, far above anything it has drawn before. A single spike does not mean it is broken. If it keeps happening, check the plug and cord, and what was switched on at that moment.`
+  }
+  if (alert.type === 'sustained-low') {
+    return `${impact.name} drew about ${watts(alert.observedWatts)} for ${duration(alert.durationMin)}, versus a normal ${watts(alert.expectedWatts)}. It may have been switched off or not running properly. Check today that it is plugged in and working.`
+  }
+  return `${impact.name} drew about ${watts(alert.observedWatts)} for ${duration(alert.durationMin)}, versus a normal ${watts(alert.expectedWatts)} for that time of day.${extra} The detector cannot see the cause, so check for a door left open, a hot room, or something newly plugged in. ${tip}`
 }

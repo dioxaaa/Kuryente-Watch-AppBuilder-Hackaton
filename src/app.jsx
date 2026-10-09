@@ -13,6 +13,7 @@ import { MeterPage } from './pages/meter-page'
 import { SettingsPage } from './pages/settings-page'
 import { AdminPage } from './pages/admin-page'
 import { toViewAlert } from './utils/alerts'
+import { offlineExplanation } from './utils/offline-assistant'
 
 const pageTitles = {
   dashboard: 'Dashboard',
@@ -240,10 +241,18 @@ export default function App() {
   }
 
   async function explainAlert(id, refresh = false) {
-    const result = await api(`/alerts/${encodeURIComponent(id)}/explain`, {
-      method: 'POST',
-      body: { refresh },
-    })
+    let result
+    try {
+      result = await api(`/alerts/${encodeURIComponent(id)}/explain`, {
+        method: 'POST',
+        body: { refresh },
+      })
+    } catch (error) {
+      // No local AI (website, phone, Ollama off): the built-in assistant explains it from the alert's numbers.
+      const alert = alerts.find(item => item.id === id)
+      if (!alert || !(error.unavailable || error.status >= 500 || error instanceof TypeError)) throw error
+      result = { explanation: offlineExplanation(alert, { appliances, rate: settings.ratePerKwh }), model: 'Built-in assistant' }
+    }
     setAlerts(items => items.map(item => item.id === id
       ? { ...item, aiExplanation: result.explanation, aiModel: result.model }
       : item))

@@ -1,6 +1,6 @@
 import test from 'node:test'
 import assert from 'node:assert/strict'
-import { applianceTip, offlineAnswer } from '../src/utils/offline-assistant.js'
+import { applianceTip, offlineAnswer, offlineExplanation } from '../src/utils/offline-assistant.js'
 import { buildAssistantContext } from '../src/utils/assistant-context.js'
 
 const context = {
@@ -45,4 +45,20 @@ test('buildAssistantContext accepts readings in the server shape', () => {
   })
   assert.equal(ctx.latest.kwh, 140)
   assert.equal(ctx.usage.recentDailyKwh, 10)
+})
+
+test('offline explanation describes a household usage jump with cost and what to check', () => {
+  const alert = { type: 'usage-jump', observedKwhPerDay: 15, expectedKwhPerDay: 10, ratio: 1.5, days: 1, excessKwh: 5 }
+  const appliances = [{ name: 'Bedroom aircon', category: 'Air conditioner', watts: 900, hours: 6 }, { name: 'Fan', category: 'Electric fan', watts: 60, hours: 10 }]
+  const text = offlineExplanation(alert, { appliances, rate: 12.5 })
+  assert.match(text, /15 kWh a day over the last day, versus your usual 10 kWh a day \(1\.5× normal\)/)
+  assert.match(text, /5\.0 kWh extra, roughly ₱63/)
+  assert.match(text, /Bedroom aircon and Fan/)
+})
+
+test('offline explanation covers device alerts without inventing a cause', () => {
+  const base = { deviceLabel: 'Family refrigerator', deviceCategory: 'Refrigerator', durationMin: 90, observedWatts: 300, expectedWatts: 150, peakWatts: 1200, excessKwh: 0.2 }
+  assert.match(offlineExplanation({ ...base, type: 'sustained-high' }, { rate: 12.5 }), /about 300 W for 1 h 30 min, versus a normal 150 W.*door seal/)
+  assert.match(offlineExplanation({ ...base, type: 'spike' }), /briefly reached 1200 W.*does not mean it is broken/)
+  assert.match(offlineExplanation({ ...base, type: 'sustained-low' }), /may have been switched off/)
 })
