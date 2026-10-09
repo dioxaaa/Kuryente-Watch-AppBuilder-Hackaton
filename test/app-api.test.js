@@ -9,8 +9,8 @@ import { openDb } from '../server/db.js'
 import * as appRepo from '../server/app-repository.js'
 import { createApp } from '../server/app.js'
 
-async function withApi(db, callback) {
-  const server = createApp(db).listen(0, '127.0.0.1')
+async function withApi(db, callback, appOptions) {
+  const server = createApp(db, appOptions).listen(0, '127.0.0.1')
   await once(server, 'listening')
   const base = `http://127.0.0.1:${server.address().port}/api`
   const call = async (route, method = 'GET', body) => {
@@ -125,6 +125,77 @@ test('profile reset does not delete meter or appliance records', async () => {
       assert.equal((await call('/readings')).body.length, 1)
       assert.equal((await call('/appliances')).body.length, 1)
     })
+  } finally {
+    db.close()
+  }
+})
+
+test('local Ollama assistant lists installed models and answers with household context', async () => {
+  const db = openDb(':memory:')
+  const requests = []
+  try {
+    appRepo.createProfile(db, { userName: 'Ana', householdName: 'Casa Ana' })
+    appRepo.createMeterReading(db, { readingKwh: 100, recordedAt: '2026-10-01T00:00:00.000Z', notes: '' })
+    appRepo.createMeterReading(db, { readingKwh: 140, recordedAt: '2026-10-08T00:00:00.000Z', notes: '' })
+    appRepo.createAppliance(db, {
+      name: 'Desk fan', category: 'Electric fan', ratedWatts: 50, hoursPerDay: 8,
+      usagePattern: 'Daily', brand: '', model: '',
+    })
+    await withApi(db, async call => {
+      const status = await call('/assistant/status')
+      assert.deepEqual(status.body, { available: true, models: ['qwen3.5:4b'], error: '' })
+      const result = await call('/assistant/chat', 'POST', {
+        model: 'qwen3.5:4b',
+        message: 'How much energy did I use?',
+        history: [{ role: 'user', content: 'Hello' }, { role: 'assistant', content: 'Hi!' }],
+      })
+      assert.equal(result.status, 200)
+      assert.equal(result.body.reply, 'You used 40 kWh between readings.')
+      assert.equal(result.body.model, 'qwen3.5:4b')
+
+      const ollamaChat = requests.find(request => request.url.endsWith('/api/chat'))
+      assert.ok(ollamaChat)
+      assert.equal(ollamaChat.body.stream, false)
+      assert.equal(ollamaChat.body.think, false)
+      assert.equal(ollamaChat.body.options.num_predict, 256)
+      assert.equal(ollamaChat.body.messages[0].role, 'system')
+      assert.match(ollamaChat.body.messages[0].content, /Casa Ana/)
+      assert.match(ollamaChat.body.messages[0].content, /Desk fan/)
+      assert.deepEqual(ollamaChat.body.messages.slice(1), [
+        { role: 'user', content: 'Hello' },
+        { role: 'assistant', content: 'Hi!' },
+        { role: 'user', content: 'How much energy did I use?' },
+      ])
+      assert.equal((await call('/assistant/chat', 'POST', { model: 'not-installed', message: 'Hi' })).status, 400)
+      assert.equal((await call('/assistant/chat', 'POST', { model: 'qwen3.5:4b', message: ' ', history: [] })).status, 400)
+    }, {
+      fetchImpl: async (url, options = {}) => {
+        if (String(url).endsWith('/api/tags')) {
+          return new Response(JSON.stringify({ models: [{ name: 'qwen3.5:4b' }] }), { status: 200 })
+        }
+        const body = JSON.parse(options.body)
+        requests.push({ url: String(url), body })
+        return new Response(JSON.stringify({ message: { content: 'You used 40 kWh between readings.' } }), { status: 200 })
+      },
+    })
+  } finally {
+    db.close()
+  }
+})
+
+test('Ollama assistant reports a missing local model service honestly', async () => {
+  const db = openDb(':memory:')
+  try {
+    await withApi(db, async call => {
+      const status = await call('/assistant/status')
+      assert.equal(status.status, 200)
+      assert.equal(status.body.available, false)
+      assert.match(status.body.error, /Ollama is not reachable/)
+      const chat = await call('/assistant/chat', 'POST', { model: 'qwen3.5:4b', message: 'Hello' })
+      assert.equal(chat.status, 503)
+      assert.match(chat.body.error, /Ollama is not reachable/)
+    }, { fetchImpl: async () => { throw new Error('connection refused') } })
+    assert.throws(() => createApp(db, { ollamaBaseUrl: 'https://example.com' }), /loopback address/)
   } finally {
     db.close()
   }

@@ -465,6 +465,60 @@ h1, h2, h3, p { margin-top: 0; }
 .setup-privacy small { color: #8b988b; font-size: 8px; line-height: 1.5; }
 .setup-footer { display: flex; width: min(100%, 455px); justify-content: space-between; gap: 10px; margin-top: 15px; color: #9ca69d; font-size: 8px; }
 .setup-footer span { color: #7b9481; }
+.assistant-layout { display: grid; grid-template-columns: minmax(0, 1fr) 255px; align-items: start; gap: 15px; }
+.assistant-panel { display: flex; min-height: 590px; flex-direction: column; overflow: hidden; padding: 0; }
+.assistant-topline { display: flex; min-height: 57px; align-items: center; justify-content: space-between; gap: 15px; padding: 10px 17px; border-bottom: 1px solid #edf0ed; }
+.assistant-model-state { display: flex; align-items: center; gap: 8px; color: #69776e; font-size: 10px; font-weight: 600; }
+.assistant-state-dot { width: 8px; height: 8px; border-radius: 50%; background: #d29b55; box-shadow: 0 0 0 3px #fbf3e8; }
+.assistant-state-ready { background: #35a56b; box-shadow: 0 0 0 3px #e9f5ec; }
+.assistant-model-state .badge { font-size: 8px; }
+.assistant-model-picker { display: flex; align-items: center; gap: 8px; color: #869188; font-size: 9px; }
+.assistant-model-picker select { max-width: 185px; height: 31px; padding: 0 24px 0 9px; border: 1px solid #e4eae4; border-radius: 7px; color: #46544a; background: #fff; font-size: 10px; }
+.assistant-messages { display: flex; min-height: 340px; flex: 1; flex-direction: column; gap: 16px; overflow-y: auto; padding: 20px clamp(14px, 3vw, 29px); }
+.assistant-welcome { display: flex; min-height: 330px; flex-direction: column; align-items: center; justify-content: center; margin: auto; text-align: center; }
+.assistant-welcome-icon, .assistant-side-icon { display: grid; width: 44px; height: 44px; place-items: center; border-radius: 14px; color: #20885d; background: #e9f5ec; }
+.assistant-welcome h2 { margin: 13px 0 6px; color: #26372d; font: 700 17px 'Aptos Display', 'Segoe UI', sans-serif; }
+.assistant-welcome > p { max-width: 410px; margin: 0; color: #879188; font-size: 10px; line-height: 1.65; }
+.assistant-suggestions { display: flex; flex-wrap: wrap; justify-content: center; gap: 7px; margin-top: 20px; }
+.assistant-suggestions button { padding: 8px 10px; border: 1px solid #e4ebe4; border-radius: 8px; color: #607066; background: #fff; font-size: 9px; text-align: left; cursor: pointer; }
+.assistant-suggestions button:hover:not(:disabled) { border-color: #b9d9c2; color: #276343; background: #f7fbf7; }
+.assistant-message { display: flex; max-width: 92%; align-items: flex-start; gap: 10px; }
+.assistant-message-user { align-self: flex-end; flex-direction: row-reverse; }
+.assistant-message-avatar { display: grid; width: 30px; height: 30px; flex: 0 0 30px; place-items: center; border-radius: 10px; color: #27764e; background: #eaf5ed; }
+.assistant-message-user .assistant-message-avatar { color: #637066; background: #f0f2f0; }
+.assistant-message-copy { min-width: 0; padding: 10px 12px; border: 1px solid #edf0ed; border-radius: 4px 12px 12px; background: #fbfcfb; }
+.assistant-message-user .assistant-message-copy { border-color: #e1efe4; border-radius: 12px 4px 12px 12px; background: #f0f7f1; }
+.assistant-message-copy strong { display: block; margin-bottom: 5px; color: #65736a; font-size: 9px; }
+.assistant-message-copy p { margin: 0; color: #334239; font-size: 11px; line-height: 1.65; overflow-wrap: anywhere; white-space: pre-wrap; }
+.assistant-thinking { display: flex; align-items: center; gap: 8px; align-self: flex-start; padding: 8px 11px 8px 40px; color: #718076; font-size: 10px; }
+.assistant-spinner { animation: assistant-spin .9s linear infinite; }
+@keyframes assistant-spin { to { transform: rotate(360deg); } }
+.assistant-error { display: flex; align-items: flex-start; gap: 8px; padding: 10px 12px; border: 1px solid #f0d6cb; border-radius: 8px; color: #924c3f; background: #fff8f4; font-size: 10px; line-height: 1.55; }
+.assistant-error > svg { flex: 0 0 auto; margin-top: 1px; }
+.assistant-error > span { flex: 1; }
+.assistant-error button { padding: 2px 0; border: 0; color: #874331; background: transparent; font-size: 9px; font-weight: 700; cursor: pointer; white-space: nowrap; }
+.assistant-composer { padding: 11px 14px 13px; border-top: 1px solid #edf0ed; background: #fff; }
+.assistant-composer textarea { display: block; width: 100%; min-height: 55px; resize: vertical; padding: 9px 10px; border: 1px solid #e3e9e3; border-radius: 8px; color: #26362c; background: #fff; font-size: 11px; line-height: 1.5; }
+.assistant-composer textarea::placeholder { color: #9aa39c; }
+.assistant-composer-footer { display: flex; align-items: center; justify-content: space-between; gap: 9px; margin-top: 8px; }
+.assistant-composer-footer > span { color: #9aa39c; font-size: 8px; }
+.assistant-composer-footer .button { min-height: 32px; font-size: 10px; }
+.assistant-side { display: grid; gap: 11px; }
+.assistant-info-card { padding: 17px; }
+.assistant-side-icon { width: 36px; height: 36px; margin-bottom: 13px; border-radius: 11px; }
+.assistant-info-card h2 { margin: 0 0 7px; color: #2a3a30; font: 700 13px 'Aptos Display', 'Segoe UI', sans-serif; }
+.assistant-info-card > p, .assistant-connect-card > p { margin: 0; color: #7d8981; font-size: 9px; line-height: 1.65; }
+.assistant-model-detail { display: grid; gap: 5px; margin-top: 15px; padding-top: 12px; border-top: 1px solid #edf0ed; }
+.assistant-model-detail span { color: #95a097; font-size: 8px; font-weight: 700; letter-spacing: .7px; }
+.assistant-model-detail strong { color: #345541; font-size: 10px; overflow-wrap: anywhere; }
+.assistant-connect-card { padding: 14px; border: 1px solid #f0e5ce; border-radius: 10px; background: #fffbf3; }
+.assistant-connect-ready { border-color: #dcebdc; background: #f7fbf6; }
+.assistant-connect-heading { display: flex; align-items: center; gap: 7px; margin-bottom: 8px; color: #826533; font-size: 10px; }
+.assistant-connect-ready .assistant-connect-heading { color: #39734e; }
+.assistant-connect-card > p { margin-bottom: 9px; }
+.assistant-connect-card .assistant-setup-hint { color: #8a724b; }
+.assistant-connect-card .button { margin-top: 3px; }
+.assistant-disclaimer { margin: 0; padding: 2px 3px; color: #9aa39c; font-size: 8px; line-height: 1.6; }
 
 @media (min-width: 1500px) {
   .main-content { padding-right: 50px; padding-left: 50px; }
@@ -480,6 +534,9 @@ h1, h2, h3, p { margin-top: 0; }
   .stats-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
   .appliance-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
   .filter-tabs button { padding-right: 7px; padding-left: 7px; }
+  .assistant-layout { grid-template-columns: minmax(0, 1fr); }
+  .assistant-side { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .assistant-disclaimer { grid-column: 1 / -1; }
 }
 @media (max-width: 850px) {
   .sidebar { transform: translateX(-100%); transition: transform .22s ease; box-shadow: 12px 0 34px #12281822; }
@@ -503,6 +560,20 @@ h1, h2, h3, p { margin-top: 0; }
   .search-button { display: none; }
   .profile-name { display: none; }
   .profile-button .avatar { width: 29px; height: 29px; flex-basis: 29px; }
+  .assistant-panel { min-height: min(680px, calc(100svh - 150px)); }
+  .assistant-topline { align-items: flex-start; flex-direction: column; gap: 9px; padding: 11px 12px; }
+  .assistant-model-picker { width: 100%; justify-content: space-between; }
+  .assistant-model-picker select { max-width: 72%; }
+  .assistant-messages { min-height: 300px; padding: 14px 11px; }
+  .assistant-welcome { min-height: 290px; }
+  .assistant-message { max-width: 100%; }
+  .assistant-suggestions { align-items: stretch; flex-direction: column; width: 100%; }
+  .assistant-suggestions button { text-align: center; }
+  .assistant-composer { padding: 9px; }
+  .assistant-composer-footer { align-items: flex-end; }
+  .assistant-composer-footer > span { max-width: 70%; line-height: 1.5; }
+  .assistant-side { grid-template-columns: minmax(0, 1fr); }
+  .assistant-disclaimer { grid-column: auto; }
   .main-content { min-height: calc(100vh - 100px); padding: 21px 13px 26px; }
   .page-title-row { align-items: flex-start; gap: 10px; margin-bottom: 15px; }
   .page-title-row h1 { font-size: 22px; }

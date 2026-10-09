@@ -7,12 +7,12 @@ export function AdminPage({ onNavigate }) {
     ['Meter reading history in SQLite', true],
     ['Appliance estimates and settings', true],
     ['Local statistical anomaly detector', true],
-    ['OCR, cloud accounts, and AI model', false],
+    ['Local Ollama Energy Assistant (model required)', true],
   ]
   return (
     <>
       <PageTitle eyebrow="LOCAL INSTALLATION" title="About KuryenteWatch" description="A household energy companion running on this computer." action={<button className="button button-secondary" onClick={() => onNavigate('dashboard')}><ArrowLeft size={15} /> Back to dashboard</button>} />
-      <div className="demo-banner"><Info size={16} /><span><strong>No online account or cloud service.</strong> Your profile and household records are stored in the local SQLite database.</span></div>
+      <div className="demo-banner"><Info size={16} /><span><strong>No online account or cloud service.</strong> Your profile and household records are stored in local SQLite; the optional Energy Assistant requires Ollama installed on this computer.</span></div>
       <div className="about-grid">
         <section className="panel about-hero"><div className="about-brand-icon"><span className="brand-mark"><span>ϟ</span></span></div><span className="eyebrow">KURYENTEWATCH · LOCAL APP</span><h2>The Local Energy Detective</h2><p>Designed to help Filipino households track cumulative meter readings, explore appliance estimates, and review local rule-based usage signals.</p><button className="button button-primary" onClick={() => onNavigate('meter')}><Eye size={16} /> Add a meter reading</button></section>
         <section className="panel about-status"><div className="panel-heading"><div><h2>Feature availability</h2><p>Local database-backed capabilities</p></div><span className="badge badge-success"><i /> LOCAL APP</span></div>{items.map(([label, done]) => <div className="status-row" key={label}><span className={`status-icon ${done ? 'status-ready' : 'status-off'}`}>{done ? <Check size={14} /> : <X size={14} />}</span><span>{label}</span><small>{done ? 'Available locally' : 'Not connected'}</small></div>)}</section>

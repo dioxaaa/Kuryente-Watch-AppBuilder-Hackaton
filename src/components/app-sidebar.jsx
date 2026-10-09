@@ -4,6 +4,7 @@ import {
   ChevronLeft,
   ChevronRight,
   House,
+  MessageCircle,
   Plug,
   Settings,
   ShieldCheck,
@@ -16,6 +17,7 @@ export const navItems = [
   { id: 'appliances', label: 'My appliances', icon: Plug },
   { id: 'history', label: 'Energy history', icon: ChartNoAxesCombined },
   { id: 'alerts', label: 'Alerts', icon: Bell },
+  { id: 'assistant', label: 'Energy Assistant', icon: MessageCircle },
   { id: 'settings', label: 'Settings', icon: Settings },
   { id: 'admin', label: 'About this installation', icon: ShieldCheck },
 ]

@@ -1,6 +1,6 @@
 # KuryenteWatch — The Local Energy Detective
 
-KuryenteWatch is a local household electricity PWA. The React interface talks only to its loopback Node.js server; Express validates requests and stores application records in SQLite. No account, cloud database, AI service, or remote API is required.
+KuryenteWatch is a local household electricity PWA. The React interface talks to its loopback Node.js server; Express validates requests and stores application records in SQLite. No account or cloud database is required. The optional Energy Assistant uses an Ollama model running locally on the same computer.
 
 ## Requirements
 
@@ -38,6 +38,19 @@ Open <http://127.0.0.1:3001>. The Express server serves the built PWA from `dist
 
 The Vite PWA plugin generates `dist/manifest.webmanifest`, the service worker, and its Workbox runtime during the build. The service worker precaches the frontend shell and build assets; it does not cache SQLite records or make the API available when Node is stopped.
 
+## Local Energy Assistant (Ollama)
+
+The Energy Assistant sends prompts and relevant saved household context from the local Node server to Ollama at `http://127.0.0.1:11434`. Browser code never calls Ollama directly, and prompts/records are not sent to a cloud model. Ollama must be installed and running, and at least one local model must be available. The app lists installed models in the Assistant page.
+
+For example, install a model once and start Ollama:
+
+```powershell
+ollama pull qwen3.5:4b
+ollama serve
+```
+
+If Ollama is already running as a background service, just leave it running. Configure a different loopback Ollama port with `OLLAMA_HOST`, for example `$env:OLLAMA_HOST = 'http://127.0.0.1:11434'` before starting `npm start`. The server intentionally rejects non-loopback Ollama hosts to keep household prompts local. If Ollama is stopped or no model is installed, the Assistant page reports that state and provides a model refresh action; the rest of KuryenteWatch continues to work.
+
 ## Local storage and privacy
 
 - Default SQLite file: `data/kuryentewatch.db`.
@@ -65,6 +78,8 @@ The server binds to `127.0.0.1` only. JSON is served from `/api`:
 | `PUT`, `DELETE` | `/api/appliances/:id` | Update or delete an appliance |
 | `GET`, `PATCH` | `/api/alerts`, `/api/alerts/:id` | List, read, and dismiss local detector alerts |
 | `GET`, `PUT` | `/api/settings` | Read and update rate and display settings |
+| `GET` | `/api/assistant/status` | List locally installed Ollama models and report availability |
+| `POST` | `/api/assistant/chat` | Generate a response with local Ollama and saved household context |
 
 Legacy local detector routes remain available: `/api/devices`, `/api/devices/:name/readings`, `/api/devices/:name/train`, `/api/devices/:name/scan`, and `/api/devices/:name/baseline`. Device power telemetry remains separate from cumulative household meter readings.
 
@@ -83,5 +98,6 @@ For an offline check, first run the production build and local server, open the 
 
 - Electricity estimates use the configured rate and calculated meter-reading differences; appliance usage is estimated from rated watts and hours.
 - Meter and appliance label images are browser previews only. OCR is not implemented.
+- The Energy Assistant uses actual local Ollama inference when the Ollama runtime and a model are available; it is not a cloud AI integration.
 - The existing detector is a local statistical/rule-based feature, not an AI model or appliance fault diagnosis.
 - This project does not synchronize or queue writes while the backend is stopped.
