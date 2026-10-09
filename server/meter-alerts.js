@@ -10,14 +10,14 @@ const round2 = n => Math.round(n * 100) / 100
 // Splits cumulative readings into periods of at least `minDays`; readings closer together are merged into one period.
 export function meterPeriods(readings, { minDays = 0.75 } = {}) {
   const sorted = readings
-    .map(r => ({ kwh: Number(r.readingKwh), time: Date.parse(r.recordedAt), at: r.recordedAt }))
+    .map(r => ({ kwh: Number(r.readingKwh), time: Date.parse(r.recordedAt), at: r.recordedAt, reset: Boolean(r.reset ?? r.isReset) }))
     .filter(r => Number.isFinite(r.kwh) && Number.isFinite(r.time))
     .sort((a, b) => a.time - b.time)
   const periods = []
   let start = sorted[0]
   for (const reading of sorted.slice(1)) {
     const days = (reading.time - start.time) / DAY_MS
-    if (reading.kwh < start.kwh) { start = reading; continue }
+    if (reading.reset || reading.kwh < start.kwh) { start = reading; continue }
     if (days < minDays) continue
     periods.push({ from: start.at, to: reading.at, days, kwh: reading.kwh - start.kwh })
     start = reading

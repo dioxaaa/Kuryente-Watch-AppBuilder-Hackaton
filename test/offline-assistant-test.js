@@ -52,7 +52,7 @@ test('offline explanation describes a household usage jump with cost and what to
   const appliances = [{ name: 'Bedroom aircon', category: 'Air conditioner', watts: 900, hours: 6 }, { name: 'Fan', category: 'Electric fan', watts: 60, hours: 10 }]
   const text = offlineExplanation(alert, { appliances, rate: 12.5 })
   assert.match(text, /15 kWh a day over the last day, versus your usual 10 kWh a day \(1\.5× normal\)/)
-  assert.match(text, /5\.0 kWh extra, roughly ₱63/)
+  assert.match(text, /5\.0 kWh extra, roughly ₱62\.50/)
   assert.match(text, /Bedroom aircon and Fan/)
 })
 

@@ -44,29 +44,33 @@ export function resetProfile(db) {
 }
 
 export function listMeterReadings(db) {
-  return db.prepare(`
+  const rows = db.prepare(`
     SELECT COALESCE(reading_kwh, kwh) AS readingKwh, recorded_at AS recordedAt,
       COALESCE(external_id, CAST(id AS TEXT)) AS id,
       notes, created_at AS createdAt,
-      COALESCE(reading_kwh, kwh) - LAG(COALESCE(reading_kwh, kwh)) OVER (ORDER BY recorded_at) AS usageKwh
+      COALESCE(is_reset, 0) AS isReset,
+      CASE WHEN COALESCE(is_reset, 0) = 1 THEN NULL
+        ELSE COALESCE(reading_kwh, kwh) - LAG(COALESCE(reading_kwh, kwh)) OVER (ORDER BY recorded_at)
+      END AS usageKwh
     FROM meter_readings ORDER BY recorded_at
   `).all()
+  return rows.map(row => ({ ...row, isReset: Boolean(row.isReset) }))
 }
 
-export function createMeterReading(db, { readingKwh, recordedAt, notes }) {
+export function createMeterReading(db, { readingKwh, recordedAt, notes, reset = false }) {
   return db.transaction(() => {
     const before = db.prepare(`
-      SELECT reading_kwh AS readingKwh FROM meter_readings
+      SELECT reading_kwh AS readingKwh, COALESCE(is_reset, 0) AS isReset FROM meter_readings
       WHERE recorded_at < ? ORDER BY recorded_at DESC LIMIT 1
     `).get(recordedAt)
     const after = db.prepare(`
-      SELECT reading_kwh AS readingKwh FROM meter_readings
+      SELECT reading_kwh AS readingKwh, COALESCE(is_reset, 0) AS isReset FROM meter_readings
       WHERE recorded_at > ? ORDER BY recorded_at LIMIT 1
     `).get(recordedAt)
-    if (before && readingKwh < before.readingKwh) {
+    if (!reset && before && readingKwh < before.readingKwh) {
       throw Object.assign(new Error(`Reading must be at least ${before.readingKwh} kWh, the preceding meter value.`), { status: 400 })
     }
-    if (after && readingKwh > after.readingKwh) {
+    if (!reset && after && !after.isReset && readingKwh > after.readingKwh) {
       throw Object.assign(new Error(`Reading must not exceed ${after.readingKwh} kWh, the next meter value.`), { status: 400 })
     }
     const createdAt = now()
@@ -75,19 +79,20 @@ export function createMeterReading(db, { readingKwh, recordedAt, notes }) {
     const textPrimaryKey = idColumn.type.toUpperCase() !== 'INTEGER' && idColumn.pk === 1
     const insert = textPrimaryKey
       ? db.prepare(`INSERT INTO meter_readings (id, external_id, reading_kwh, kwh, recorded_at, notes, source, created_at, is_reset)
-          VALUES (?, ?, ?, ?, ?, ?, 'Manual entry', ?, 0)`)
+          VALUES (?, ?, ?, ?, ?, ?, 'Manual entry', ?, ?)`)
       : db.prepare(`INSERT INTO meter_readings (external_id, reading_kwh, kwh, recorded_at, notes, source, created_at, is_reset)
-          VALUES (?, ?, ?, ?, ?, 'Manual entry', ?, 0)`)
+          VALUES (?, ?, ?, ?, ?, 'Manual entry', ?, ?)`)
     const result = textPrimaryKey
-      ? insert.run(generatedId, generatedId, readingKwh, readingKwh, recordedAt, notes, createdAt)
-      : insert.run(generatedId, readingKwh, readingKwh, recordedAt, notes, createdAt)
+      ? insert.run(generatedId, generatedId, readingKwh, readingKwh, recordedAt, notes, createdAt, reset ? 1 : 0)
+      : insert.run(generatedId, readingKwh, readingKwh, recordedAt, notes, createdAt, reset ? 1 : 0)
     return {
       id: textPrimaryKey ? generatedId : Number(result.lastInsertRowid),
       readingKwh,
       recordedAt,
       notes,
       createdAt,
-      usageKwh: before ? readingKwh - before.readingKwh : null,
+      isReset: reset,
+      usageKwh: reset || !before ? null : readingKwh - before.readingKwh,
     }
   })()
 }

@@ -4,7 +4,8 @@ export const formatPeso = amount =>
   new Intl.NumberFormat('en-PH', {
     style: 'currency',
     currency: 'PHP',
-    maximumFractionDigits: 0,
+    minimumFractionDigits: 2,
+    maximumFractionDigits: 2,
   }).format(Number.isFinite(amount) ? amount : 0)
 
 export const formatDate = date =>
@@ -43,8 +44,10 @@ export function usageFromReadings(readings) {
 export function meterDailyUse(readings, since) {
   const start = readings.findIndex(reading => new Date(reading.recordedAt) >= since)
   if (start === -1) return null
-  const from = readings[Math.max(start - 1, 0)]
-  const kwh = readings.slice(Math.max(start, 1)).reduce((sum, reading) => sum + (reading.usageKwh ?? 0), 0)
+  const latestReset = readings.reduce((index, reading, current) => reading.isReset || reading.reset ? current : index, -1)
+  const fromIndex = latestReset >= start ? latestReset : Math.max(start - 1, 0)
+  const from = readings[fromIndex]
+  const kwh = readings.slice(fromIndex + 1).reduce((sum, reading) => sum + (reading.usageKwh ?? 0), 0)
   const days = (new Date(readings.at(-1).recordedAt) - new Date(from.recordedAt)) / 86400000
   if (days < 0.75) return null
   return { kwh, days, perDay: kwh / days, from: from.recordedAt }

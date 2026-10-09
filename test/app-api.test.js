@@ -69,6 +69,30 @@ test('cumulative household readings calculate positive deltas and reject decreas
   }
 })
 
+test('a replaced meter starts a new reading sequence', async () => {
+  const db = openDb(':memory:')
+  try {
+    await withApi(db, async call => {
+      await call('/readings', 'POST', { readingKwh: 200, recordedAt: '2026-10-01T09:00:00.000Z' })
+      await call('/readings', 'POST', { readingKwh: 220, recordedAt: '2026-10-02T09:00:00.000Z' })
+      const reset = await call('/readings', 'POST', { readingKwh: 10, recordedAt: '2026-10-03T09:00:00.000Z', reset: true })
+      assert.equal(reset.status, 201)
+      assert.equal(reset.body.reading.usageKwh, null)
+      assert.equal(reset.body.reading.isReset, true)
+
+      const next = await call('/readings', 'POST', { readingKwh: 15, recordedAt: '2026-10-04T09:00:00.000Z' })
+      assert.equal(next.body.reading.usageKwh, 5)
+      const rows = (await call('/readings')).body
+      assert.equal(rows[2].usageKwh, null)
+      assert.equal(rows[2].isReset, true)
+      assert.equal(rows[3].usageKwh, 5)
+      assert.equal((await call('/readings', 'POST', { readingKwh: 8, recordedAt: '2026-10-05T09:00:00.000Z' })).status, 400)
+    })
+  } finally {
+    db.close()
+  }
+})
+
 test('appliance CRUD validates fields and returns not found for missing IDs', async () => {
   const db = openDb(':memory:')
   try {

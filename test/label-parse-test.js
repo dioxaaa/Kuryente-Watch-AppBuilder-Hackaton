@@ -8,19 +8,22 @@ test('reads printed watts, brand and model from a label', () => {
   assert.equal(found.source, 'label')
   assert.equal(found.brand, 'Samsung')
   assert.equal(found.model, 'EP-TA800')
-  assert.equal(found.volts, 230)
+  assert.equal(found.volts, null, 'a printed voltage range is not reduced to a guessed single value')
   assert.equal(found.amps, 1.5)
 })
 
-test('computes watts from volts × amps when no wattage is printed', () => {
+test('does not convert input volts and amps into an invented watt rating', () => {
   const found = parseApplianceLabel('220V~ 60Hz 2.5A')
-  assert.equal(found.watts, 550)
-  assert.equal(found.source, 'computed')
+  assert.equal(found.watts, null)
+  assert.equal(found.source, null)
+  assert.equal(found.volts, 220)
+  assert.equal(found.amps, 2.5)
 })
 
 test('kW is converted and Wh is not mistaken for watts', () => {
   assert.equal(parseApplianceLabel('Rated power 1.2kW').watts, 1200)
   assert.equal(parseApplianceLabel('Battery 50Wh').watts, null)
+  assert.equal(parseApplianceLabel('Input 100-240V 1.5A').watts, null)
 })
 
 test('prefers a wattage labelled as power or input and reports the others', () => {

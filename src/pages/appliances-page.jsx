@@ -5,7 +5,6 @@ import { EmptyState } from '../components/empty-state'
 import { PageTitle } from '../components/page-title'
 import { estimateDailyKwh, formatDate, formatPeso, meterDailyUse } from '../utils/energy-utils'
 import { photoToJpegDataUrl } from '../utils/image'
-import { readApplianceLabelOnDevice } from '../utils/offline-ocr'
 
 const categories = ['All appliances', 'Refrigerator', 'Electric fan', 'Air conditioner', 'Rice cooker', 'Television', 'Washing machine', 'Other']
 const icons = { Refrigerator, 'Electric fan': Fan, 'Air conditioner': AirVent, 'Rice cooker': Zap, Television: Tv, 'Washing machine': WashingMachine, Other: Lightbulb }
@@ -55,6 +54,7 @@ function ApplianceModal({ appliance, onClose, onSave, rate }) {
     setError('')
     setScan(null)
     try {
+      const { readApplianceLabelOnDevice } = await import('../utils/offline-ocr.js')
       const found = await readApplianceLabelOnDevice(await photoToJpegDataUrl(file, 2000, 0.92))
       setForm(current => ({
         ...current,
@@ -87,7 +87,7 @@ function ApplianceModal({ appliance, onClose, onSave, rate }) {
           {photo && <button className="button button-secondary button-small" type="button" onClick={readLabel} disabled={scanning}><ScanLine size={15} /> {scanning ? 'Reading label…' : 'Read specifications from photo'}</button>}
           {scan && (
             <p className="photo-note"><Check size={14} /><span>
-              {scan.watts ? <>Suggested <strong>{scan.watts} W</strong>{scan.source === 'computed' ? ` (${scan.volts} V × ${scan.amps} A input rating)` : ' from the label'}. </> : 'No wattage found; enter it from the label. '}
+              {scan.watts ? <>Suggested <strong>{scan.watts} W</strong> from the label. </> : <>No explicit wattage found; enter the rated watts manually{scan.amps ? ` (the label also shows ${scan.amps} A${scan.volts ? ` at ${scan.volts} V` : ''})` : ''}. </>}
               {scan.otherWatts?.length ? `Other values seen: ${scan.otherWatts.join(', ')} W. ` : ''}
               Check every field against your photo. A label shows the maximum rating, not real use.
             </span></p>
@@ -129,8 +129,8 @@ export function AppliancesPage({ appliances, readings = [], onAdd, onUpdate, onD
   const [modal, setModal] = useState(undefined)
   const [deleteTarget, setDeleteTarget] = useState(null)
   const shown = useMemo(() => appliances.filter(item => (filter === 'All appliances' || item.category === filter) && `${item.name} ${item.category}`.toLowerCase().includes(search.toLowerCase())), [appliances, filter, search])
-  const totalDaily = shown.reduce((sum, appliance) => sum + (appliance.watts * appliance.hours) / 1000, 0)
   const listDaily = appliances.reduce((sum, appliance) => sum + (appliance.watts * appliance.hours) / 1000, 0)
+  const totalDaily = listDaily
   const meter = meterDailyUse(readings, new Date(Date.now() - 30 * 86400000))
 
   async function save(item) {

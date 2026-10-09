@@ -8,7 +8,14 @@ const round2 = n => Math.round(n * 100) / 100
 
 // Meter-based use: the latest stretch between readings versus the average of the stretches before it.
 export function usageSummary(readings) {
-  const points = usageFromReadings(readings)
+  const normalized = readings.map(reading => ({
+    ...reading,
+    kwh: reading.kwh ?? reading.readingKwh,
+    date: reading.date ?? reading.recordedAt,
+    reset: reading.reset ?? reading.isReset,
+  }))
+  const latestReset = normalized.reduce((index, reading, current) => reading.reset ? current : index, -1)
+  const points = usageFromReadings(normalized.slice(latestReset < 0 ? 0 : latestReset))
   if (!points.length) return null
   const latest = points[points.length - 1]
   const earlier = points.slice(0, -1)
@@ -18,9 +25,9 @@ export function usageSummary(readings) {
 
 // Sent to /api/assistant. Numbers only: the server writes the prompt, so the browser can never inject instructions.
 export function buildAssistantContext({ readings = [], appliances = [], alerts = [], rate, monthKwh } = {}) {
-  readings = readings.map(r => ({ ...r, kwh: r.kwh ?? r.readingKwh, date: r.date ?? r.recordedAt }))
+  readings = readings.map(r => ({ ...r, kwh: r.kwh ?? r.readingKwh, date: r.date ?? r.recordedAt, reset: r.reset ?? r.isReset }))
   const latest = readings[readings.length - 1]
-  const previous = readings[readings.length - 2]
+  const previous = latest?.reset ? undefined : readings[readings.length - 2]
   return {
     rate,
     monthKwh,

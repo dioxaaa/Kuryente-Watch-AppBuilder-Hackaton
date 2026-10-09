@@ -1,6 +1,6 @@
 import test from 'node:test'
 import assert from 'node:assert/strict'
-import { daysInMonth, meterDailyUse } from '../src/utils/energy-utils.js'
+import { daysInMonth, estimateDailyKwh, formatPeso, meterDailyUse } from '../src/utils/energy-utils.js'
 
 const readings = [
   { recordedAt: '2026-09-28T08:00:00Z', readingKwh: 1000, usageKwh: null },
@@ -26,7 +26,27 @@ test('meterDailyUse waits until readings span most of a day', () => {
   assert.equal(meterDailyUse(readings, new Date('2026-11-01')), null)
 })
 
+test('meterDailyUse starts over after a meter reset instead of mixing sequences', () => {
+  const withReset = [
+    { recordedAt: '2026-09-28T08:00:00Z', readingKwh: 1000, usageKwh: null },
+    { recordedAt: '2026-10-02T08:00:00Z', readingKwh: 1040, usageKwh: 40 },
+    { recordedAt: '2026-10-03T08:00:00Z', readingKwh: 5, usageKwh: null, isReset: true },
+    { recordedAt: '2026-10-06T08:00:00Z', readingKwh: 15, usageKwh: 10 },
+  ]
+  const use = meterDailyUse(withReset, new Date('2026-10-01T00:00:00Z'))
+  assert.equal(use.kwh, 10)
+  assert.equal(use.days, 3)
+  assert.equal(use.from, '2026-10-03T08:00:00Z')
+})
+
 test('daysInMonth', () => {
   assert.equal(daysInMonth(new Date(2026, 1, 10)), 28)
   assert.equal(daysInMonth(new Date(2026, 9, 10)), 31)
+})
+
+test('appliance estimates preserve centavo precision', () => {
+  const dailyKwh = estimateDailyKwh({ watts: 60, hours: 8 })
+  assert.equal(dailyKwh, 0.48)
+  assert.equal(Number((dailyKwh * 30).toFixed(2)), 14.4)
+  assert.equal(formatPeso(dailyKwh * 30 * 12), '₱172.80')
 })

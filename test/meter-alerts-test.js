@@ -65,7 +65,7 @@ test('scanMeterReadings saves one alert per jump and the views describe it', () 
     const impact = alertImpact(view, [{ name: 'Fridge', category: 'Refrigerator' }], 12)
     assert.equal(impact.appliance, null)
     assert.equal(impact.extraKwh, 10)
-    assert.equal(impact.moneyText, '≈ ₱120')
+    assert.equal(impact.moneyText, '≈ ₱120.00')
     assert.match(buildExplainMessages(saved)[1].content, /main electricity meter/)
   } finally {
     db.close()

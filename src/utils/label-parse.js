@@ -1,7 +1,5 @@
 // Reads an appliance rating label's OCR text and suggests its specifications.
 // These are SUGGESTIONS for the user to confirm: a label shows a rating (a maximum), not measured use.
-const MAINS_VOLTS = 230 // Philippine household supply, used when a label shows an input range such as 100-240V
-
 const BRANDS = [
   'Samsung', 'LG', 'Sony', 'Panasonic', 'Philips', 'Kolin', 'Condura', 'Carrier', 'Hanabishi', 'Imarflex',
   'Midea', 'Haier', 'Whirlpool', 'Toshiba', 'Sharp', 'Xiaomi', 'Anker', 'Apple', 'Asus', 'Acer', 'Dell',
@@ -21,13 +19,13 @@ function wattCandidates(text) {
   return found
 }
 
-// The mains (input) voltage: a value of 100 V or more, picking 230 V from a range such as 100-240V.
+// A single printed mains voltage; a voltage range is not treated as one confirmed value.
 function mainsVolts(text) {
   for (const match of text.matchAll(/(\d{2,3})(?:\s*[-–~]\s*(\d{2,3}))?\s*V(?![A-Za-z])/gi)) {
     const low = Number(match[1])
-    const high = match[2] ? Number(match[2]) : low
+    const high = Number(match[2] ?? low)
     if (high < 100) continue
-    return { volts: low <= MAINS_VOLTS && MAINS_VOLTS <= high ? MAINS_VOLTS : high, index: match.index, end: match.index + match[0].length }
+    return { volts: match[2] ? null : low, index: match.index, end: match.index + match[0].length }
   }
   return null
 }
@@ -49,22 +47,14 @@ export function parseApplianceLabel(rawText) {
   const labelled = watts.filter(item => /power|rated|input|consumption|watt/i.test(text.slice(Math.max(0, item.index - 30), item.index)))
   const chosen = (labelled.length ? labelled : watts).reduce((best, item) => (!best || item.value > best.value ? item : best), null)
 
-  let ratedWatts = null
-  let source = null
-  if (chosen) {
-    ratedWatts = chosen.value
-    source = 'label'
-  } else if (mains && amps) {
-    ratedWatts = Math.round(mains.volts * amps)
-    source = 'computed'
-  }
+  const ratedWatts = chosen?.value ?? null
 
   const brand = BRANDS.find(name => new RegExp(`\\b${name}\\b`, 'i').test(text)) ?? null
   const modelMatch = text.match(/\bMODEL(?:\s*(?:NO|NUMBER|#))?\.?\s*[:.]?\s*([A-Z0-9][A-Z0-9\-/]{3,24})/i)
 
   return {
     watts: ratedWatts,
-    source, // 'label' = printed wattage, 'computed' = volts × amps from the input rating
+    source: chosen ? 'label' : null,
     volts: mains?.volts ?? null,
     amps,
     brand,
