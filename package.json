@@ -13,8 +13,14 @@
   },
   "dependencies": {
     "better-sqlite3": "^13.0.3",
+<<<<<<< HEAD
+    "cors": "^2.8.6",
+    "dexie": "^4.4.6",
+=======
+>>>>>>> 6fc94916586368bb2aa5929ef21924da13e7bfeb
     "express": "^5.2.1",
     "lucide-react": "^0.468.0",
+    "ollama": "^0.6.4",
     "react": "^18.3.1",
     "react-dom": "^18.3.1",
     "recharts": "^2.15.0"
