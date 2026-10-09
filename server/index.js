@@ -1,10 +1,11 @@
 import { openDb } from './db.js'
 import { createApp } from './app.js'
-<<<<<<< HEAD
+import { seedDefaultAppliances } from './default-appliances.js'
 import ollama from 'ollama'
 
 const port = Number(process.env.PORT) || 3001
 const db = openDb()
+seedDefaultAppliances(db) // loads the starter appliances once into a brand-new database
 
 // 1. Create the Express app instance
 const app = createApp(db)
@@ -53,16 +54,7 @@ Give a concise, practical 2-sentence tip on how the household can save energy fo
   }
 })
 
-// 4. Start the server
+// 4. Start the server (localhost only: not reachable from other machines)
 app.listen(port, '127.0.0.1', () => {
   console.log(`KuryenteWatch API (local SQLite) on http://127.0.0.1:${port}`)
 })
-=======
-import { seedDefaultAppliances } from './default-appliances.js'
-
-const port = Number(process.env.PORT) || 3001
-const db = openDb()
-seedDefaultAppliances(db)
-createApp(db).listen(port, '127.0.0.1', () => // localhost only: not reachable from other machines
-  console.log(`KuryenteWatch API (local SQLite) on http://127.0.0.1:${port}`))
->>>>>>> 6fc94916586368bb2aa5929ef21924da13e7bfeb

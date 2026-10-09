@@ -12,7 +12,7 @@ const greeting = () => { const hour = new Date().getHours(); return hour < 12 ? 
 export function DashboardPage({ readings, alerts, appliances, rate, household, onNavigate }) {
   const current = readings[readings.length - 1]
   const previous = readings[readings.length - 2]
-  const delta = current && previous ? current.kwh - previous.kwh : 0
+  const delta = current && previous && !current.reset ? current.kwh - previous.kwh : 0
   const estimatedMonthKwh = Math.round(estimateMonthKwh(appliances))
   const freshAlerts = alerts.filter(alert => !alert.read).slice(0, 2)
   const weekly = usageFromReadings(readings).slice(-7)
@@ -27,7 +27,7 @@ export function DashboardPage({ readings, alerts, appliances, rate, household, o
         <StatCard label="Monthly estimate" value={estimatedMonthKwh} unit=" kWh" note="From your appliance list" icon={Zap} />
         <StatCard label="Estimated bill" value={formatPeso(estimatedMonthKwh * rate)} unit="" note={`At ₱${rate.toFixed(2)} / kWh`} icon={Gauge} tone="amber" />
         <StatCard label="Latest meter reading" value={current?.kwh.toLocaleString() ?? '—'} unit={current ? ' kWh' : ''} note={current ? `${current.source} · ${formatDate(current.date)}` : 'No readings yet'} icon={Droplets} tone="blue" />
-        <StatCard label="Since previous reading" value={previous ? delta.toFixed(1) : '—'} unit={previous ? ' kWh' : ''} note={previous ? `Since ${formatDate(previous.date)}` : 'Add another reading'} icon={Clock3} tone="purple" />
+        <StatCard label="Since previous reading" value={previous && !current.reset ? delta.toFixed(1) : '—'} unit={previous && !current.reset ? ' kWh' : ''} note={previous ? (current.reset ? 'New meter started' : `Since ${formatDate(previous.date)}`) : 'Add another reading'} icon={Clock3} tone="purple" />
       </section>
       <div className="dashboard-grid">
         <section className="panel chart-panel">

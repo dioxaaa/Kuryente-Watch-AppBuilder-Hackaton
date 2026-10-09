@@ -27,7 +27,7 @@ export function usageFromReadings(readings) {
   for (let i = 1; i < readings.length; i++) {
     const days = (new Date(readings[i].date) - new Date(readings[i - 1].date)) / 86400000
     const used = readings[i].kwh - readings[i - 1].kwh
-    if (days < 1 / 24 || used < 0) continue
+    if (days < 1 / 24 || used < 0 || readings[i].reset) continue
     points.push({
       day: new Intl.DateTimeFormat('en-PH', { month: 'short', day: 'numeric' }).format(new Date(readings[i].date)),
       usage: Number((used / days).toFixed(1)),

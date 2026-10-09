@@ -116,7 +116,7 @@ export default function App() {
 
   const addReading = async reading => {
     try {
-      const saved = await api.post('/meter-readings', { kwh: reading.kwh, date: reading.date.toISOString(), source: reading.source })
+      const saved = await api.post('/meter-readings', { kwh: reading.kwh, date: reading.date.toISOString(), source: reading.source, reset: reading.reset === true })
       setReadings(items => [...items, ...withDates([saved])].sort((a, b) => a.date.getTime() - b.date.getTime()))
       return true
     } catch (err) { toastMessage(err.message); return false }

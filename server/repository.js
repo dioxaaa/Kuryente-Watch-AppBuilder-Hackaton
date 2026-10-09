@@ -105,13 +105,13 @@ export function updateAppliance(db, id, a) {
 export const deleteAppliance = (db, id) => db.prepare('DELETE FROM appliances WHERE id = ?').run(id).changes > 0
 
 // ---------- household meter readings (what the user types in from the meter) ----------
-const rowToMeterReading = r => ({ id: r.id, kwh: r.kwh, date: r.recorded_at, source: r.source })
+const rowToMeterReading = r => ({ id: r.id, kwh: r.kwh, date: r.recorded_at, source: r.source, reset: !!r.is_reset })
 export const listMeterReadings = db =>
   db.prepare('SELECT * FROM meter_readings ORDER BY recorded_at, rowid').all().map(rowToMeterReading)
-export function addMeterReading(db, { id = randomUUID(), kwh, date, source = 'Manual entry' }) {
+export function addMeterReading(db, { id = randomUUID(), kwh, date, source = 'Manual entry', reset = false }) {
   // INSERT OR IGNORE keeps a retried one-time import from creating duplicates
-  db.prepare('INSERT OR IGNORE INTO meter_readings (id, kwh, recorded_at, source, created_at) VALUES (?,?,?,?,?)')
-    .run(id, kwh, date, source, now())
+  db.prepare('INSERT OR IGNORE INTO meter_readings (id, kwh, recorded_at, source, created_at, is_reset) VALUES (?,?,?,?,?,?)')
+    .run(id, kwh, date, source, now(), reset ? 1 : 0)
   return rowToMeterReading(db.prepare('SELECT * FROM meter_readings WHERE id = ?').get(id))
 }
 export const deleteMeterReading = (db, id) => db.prepare('DELETE FROM meter_readings WHERE id = ?').run(id).changes > 0
