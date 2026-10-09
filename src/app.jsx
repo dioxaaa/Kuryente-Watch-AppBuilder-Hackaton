@@ -45,6 +45,7 @@ export default function App() {
   const [appliances, setAppliances] = useState([])
   const [alerts, setAlerts] = useState([])
   const [alertsLoaded, setAlertsLoaded] = useState(false)
+  const [meterCheck, setMeterCheck] = useState(null)
   const [settings, setSettings] = useState({ ratePerKwh: 12.5, compact: false, weeklySummary: true })
   const [toast, setToast] = useState('')
   const [toastKind, setToastKind] = useState('success')
@@ -92,6 +93,7 @@ export default function App() {
       setAppliances(savedAppliances.map(toApplianceView))
       setAlerts(savedAlerts.map(alert => toViewAlert(alert, devices)))
       setAlertsLoaded(true)
+      api('/alerts/meter-status').then(setMeterCheck).catch(() => setMeterCheck(null))
       setMode('ready')
     } catch (error) {
       setBackendConnected(false)
@@ -129,8 +131,10 @@ export default function App() {
 
   async function saveReading(value) {
     try {
-      const { reading } = await api('/readings', { method: 'POST', body: value })
+      const { reading, newAlerts } = await api('/readings', { method: 'POST', body: value })
       setReadings(previous => sortReadings([...previous, reading]))
+      refreshAlerts().catch(reportFailure)
+      if (newAlerts > 0) showToast('Your daily electricity use jumped. Check Alerts for details.')
       return true
     } catch (error) {
       reportFailure(error)
@@ -208,7 +212,8 @@ export default function App() {
   }
 
   async function refreshAlerts() {
-    const [savedAlerts, devices] = await Promise.all([api('/alerts'), api('/devices')])
+    const [savedAlerts, devices, status] = await Promise.all([api('/alerts'), api('/devices'), api('/alerts/meter-status').catch(() => null)])
+    setMeterCheck(status)
     setAlerts(savedAlerts.map(alert => toViewAlert(alert, devices)))
     setAlertsLoaded(true)
   }
@@ -217,11 +222,16 @@ export default function App() {
     try {
       const result = await api('/scan', { method: 'POST' })
       await refreshAlerts()
-      showToast(result.scanned === 0
-        ? 'No devices have a learned baseline yet. Add device readings and train a baseline first.'
-        : result.newAlerts > 0
-          ? `Scan finished: ${result.newAlerts} new alert${result.newAlerts === 1 ? '' : 's'} found.`
-          : 'Scan finished: nothing new or unusual.')
+      const latest = result.meterLatest
+      showToast(result.newAlerts > 0
+        ? `Scan finished: ${result.newAlerts} new alert${result.newAlerts === 1 ? '' : 's'} found.`
+        : latest && latest.observedKwhPerDay > latest.warnAboveKwhPerDay
+          ? `Scan finished: your latest use (${latest.observedKwhPerDay} kWh/day) is still above your usual ${latest.expectedKwhPerDay} kWh/day. See the alert below.`
+          : latest
+            ? `Scan finished: nothing unusual. Latest use is ${latest.observedKwhPerDay} kWh/day; your usual is ${latest.expectedKwhPerDay} kWh/day.`
+            : result.scanned === 0
+              ? 'Not enough meter history yet. Save at least 3 readings, each about a day (18+ hours) apart. Readings closer together are combined.'
+              : 'Scan finished: nothing new or unusual.')
     } catch (error) {
       reportFailure(error)
     }
@@ -283,6 +293,7 @@ export default function App() {
       case 'alerts':
         return <AlertsPage
           alerts={alerts.filter(alert => !alert.dismissed)}
+          meterCheck={meterCheck}
           appliances={appliances}
           rate={settings.ratePerKwh}
           loaded={alertsLoaded}

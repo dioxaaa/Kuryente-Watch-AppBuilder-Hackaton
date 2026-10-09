@@ -11,6 +11,7 @@ const TITLES = {
   'spike': label => `Sudden power spike on ${label.toLowerCase()}`,
   'sustained-high': label => `${label} stayed above its normal draw`,
   'sustained-low': label => `${label} drew much less power than usual`,
+  'usage-jump': () => 'Household electricity use jumped',
 }
 
 export const duration = minutes => {
@@ -20,19 +21,23 @@ export const duration = minutes => {
   return rest ? `${h} h ${rest} min` : `${h} h`
 }
 
+const days = n => (Number(n) >= 1.5 ? `${Math.round(Number(n))} days` : Number(n) >= 0.95 ? '1 day' : `${Math.round(Number(n) * 24)} h`)
+
 // `devices` is the list from /api/devices, used to show friendly names such as "Family refrigerator".
 export function toViewAlert(raw, devices = []) {
   const device = devices.find(d => d.name === raw.device)
-  const label = device?.label || humanize(raw.device)
+  const label = device?.label || (raw.type === 'usage-jump' ? 'Household meter' : humanize(raw.device))
   const title = (TITLES[raw.type] ?? (name => `Unusual usage on ${name.toLowerCase()}`))(label)
-  const length = raw.type === 'spike' ? '' : ` · ${duration(raw.durationMin)}`
+  const length = raw.type === 'spike' ? '' : raw.type === 'usage-jump' ? ` · over ${days(raw.days)}` : ` · ${duration(raw.durationMin)}`
   return {
     id: raw.id,
     device: raw.device,
     type: raw.type,
     title,
     context: `${label} · ${formatWhen(raw.start)}${length}`,
-    description: raw.explanation ?? '',
+    description: raw.explanation ?? (raw.type === 'usage-jump'
+      ? `About ${raw.observedKwhPerDay} kWh a day since your previous reading, versus your usual ${raw.expectedKwhPerDay} kWh a day (${raw.ratio}×).`
+      : ''),
     severity: raw.severity === 'high' ? 'high' : 'warning',
     happenedAt: new Date(raw.start),
     // The detector's numbers, kept so the dashboard can connect the alert to an appliance and a cost.
@@ -44,6 +49,9 @@ export function toViewAlert(raw, devices = []) {
     peakWatts: Number(raw.peakWatts) || 0,
     ratio: Number(raw.ratio) || 0,
     excessKwh: Number(raw.excessKwh) || 0,
+    observedKwhPerDay: Number(raw.observedKwhPerDay) || 0,
+    expectedKwhPerDay: Number(raw.expectedKwhPerDay) || 0,
+    days: Number(raw.days) || 0,
     read: !!raw.read,
     dismissed: !!raw.dismissed,
     aiExplanation: raw.aiExplanation ?? null,

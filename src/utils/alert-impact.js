@@ -20,12 +20,16 @@ export function applianceForAlert(alert, appliances = []) {
 // What an alert means for the household: who, how much extra energy, how many pesos.
 // Only "stayed high" alerts have a measured extra amount. Spikes and low-power alerts get no invented cost.
 export function alertImpact(alert, appliances, rate) {
-  const appliance = applianceForAlert(alert, appliances)
-  const name = appliance?.name || alert.deviceLabel || 'This device'
-  const extraKwh = alert.type === 'sustained-high' ? Number(alert.excessKwh) || 0 : 0
+  const wholeHome = alert.type === 'usage-jump'
+  const appliance = wholeHome ? null : applianceForAlert(alert, appliances)
+  const name = wholeHome ? 'Your household' : appliance?.name || alert.deviceLabel || 'This device'
+  const extraKwh = alert.type === 'sustained-high' || wholeHome ? Number(alert.excessKwh) || 0 : 0
   const extraPesos = extraKwh * (Number(rate) || 0)
   let headline, detail
-  if (alert.type === 'spike') {
+  if (wholeHome) {
+    headline = `${name} used about ${kwhText(extraKwh)} more than usual`
+    detail = `${alert.observedKwhPerDay} kWh/day vs your usual ${alert.expectedKwhPerDay} kWh/day since the previous meter reading`
+  } else if (alert.type === 'spike') {
     headline = `${name} hit ${watts(alert.peakWatts)}, far above anything it has drawn before`
     detail = 'A one-off peak. No extra cost is estimated for a spike.'
   } else if (alert.type === 'sustained-low') {

@@ -9,6 +9,7 @@ import { explainAlert } from './alert-explainer.js'
 import { readMeterPhoto } from './meter-ocr.js'
 import { cleanAppliance } from './appliances.js'
 import { cleanMeterReading } from './meter-readings.js'
+import { METER_DEVICE, meterStatus, scanMeterReadings } from './meter-alerts.js'
 import { checkReading } from '../src/utils/meter-check.js'
 
 const appRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..')
@@ -316,7 +317,7 @@ export function createApp(db, {
       notes: body.notes === undefined ? '' : typeof body.notes === 'string' && body.notes.length <= 500 ? body.notes.trim() : fail('Notes must be 500 characters or fewer.'),
     })
     res.status(201)
-    return { reading }
+    return { reading, newAlerts: scanMeterReadings(db).newAlerts }
   }))
 
   app.get('/api/appliances', wrap(() => repo.listAppliances(db)))
@@ -348,7 +349,7 @@ export function createApp(db, {
     return { deleted: true }
   }))
 
-  app.get('/api/devices', wrap(() => repo.listDevices(db)))
+  app.get('/api/devices', wrap(() => repo.listDevices(db).filter(device => device.name !== METER_DEVICE)))
   app.post('/api/devices', wrap(req => {
     const input = objectBody(req.body)
     repo.saveDevice(db, {
@@ -381,7 +382,11 @@ export function createApp(db, {
   // train / scan
   app.post('/api/devices/:name/train', wrap(req => trainDevice(db, req.params.name, range(req.body ?? {}))))
   app.post('/api/devices/:name/scan', wrap(req => scanDevice(db, req.params.name, range(req.body ?? {}), req.body?.options)))
-  app.post('/api/scan', wrap(() => scanAllDevices(db)))
+  app.post('/api/scan', wrap(() => {
+    const meter = scanMeterReadings(db)
+    const devices = scanAllDevices(db)
+    return { ...devices, newAlerts: devices.newAlerts + meter.newAlerts, meterPeriods: meter.periods, meterLatest: meter.latest }
+  }))
   // Readings + learned normal band + flagged events for one device, ready to draw. ?alertId=… centres it on an alert; else ?hours=24.
   app.get('/api/devices/:name/chart', wrap(req => deviceChart(db, req.params.name, { from: req.query.from, to: req.query.to, alertId: req.query.alertId, hours: req.query.hours })))
   app.get('/api/devices/:name/baseline', wrap(req => {
@@ -394,6 +399,7 @@ export function createApp(db, {
     const device = req.query.device === undefined ? undefined : requiredText(req.query.device, 'Device name', 100)
     return repo.listAlerts(db, { device, includeDismissed: req.query.includeDismissed === 'true' }).map(alertView)
   }))
+  app.get('/api/alerts/meter-status', wrap(() => meterStatus(db)))
   app.get('/api/alerts/unread-count', wrap(() => ({ count: repo.unreadAlertCount(db) })))
   app.patch('/api/alerts/:id', wrap(req => {
     const body = objectBody(req.body)
@@ -467,7 +473,9 @@ export function createApp(db, {
     const reading = cleanMeterReading(req.body)
     const problem = checkReading(repo.listMeterReadings(db), reading)
     if (problem) throw Object.assign(new Error(problem), { status: 400 })
-    return repo.addMeterReading(db, reading)
+    const saved = repo.addMeterReading(db, reading)
+    scanMeterReadings(db)
+    return saved
   }))
   // Reads the kWh value from a meter photo with the local vision model. Nothing is saved: the person confirms first.
   app.post('/api/meter-readings/read-photo', async (req, res) => {

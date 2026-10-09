@@ -1297,3 +1297,5 @@ body { background: var(--bg); letter-spacing: -.005em; }
 [data-theme="dark"] .assistant-connect-ready { border-color: #24452f; background: #13241a; }
 [data-theme="dark"] .assistant-connect-ready .assistant-connect-heading { color: var(--brand); }
 [data-theme="dark"] .assistant-connect-ready > p { color: var(--muted); }
+
+.meter-check { margin-top: -6px; }

@@ -22,6 +22,7 @@ export function scanDevice(db, device, range = {}, options = {}) {
 export function scanAllDevices(db, options = {}) {
   const devices = [], skipped = []
   for (const { name } of listDevices(db)) {
+    if (name === 'household-meter') continue // meter alerts come from meter readings (meter-alerts.js)
     const baseline = getBaseline(db, name)
     if (!baseline) { skipped.push({ device: name, reason: 'No baseline yet' }); continue }
     const { events, newAlerts } = scanDevice(db, name, { from: baseline.trainedOn.to }, options)

@@ -6,8 +6,9 @@
   "scripts": {
     "dev": "vite",
     "build": "vite build",
+    "build:web": "vite build --mode web --outDir dist-web",
     "preview": "vite preview",
-    "test": "node --test test/detector.test.js test/server.test.js test/app-api.test.js test/appliances-test.js test/meter-test.js test/alert-explainer-test.js test/scan-test.js test/meter-ocr-test.js test/chart-test.js test/alert-impact-test.js test/ai-recommendation-test.js",
+    "test": "node --test test/detector.test.js test/server.test.js test/app-api.test.js test/appliances-test.js test/meter-test.js test/alert-explainer-test.js test/scan-test.js test/meter-ocr-test.js test/chart-test.js test/alert-impact-test.js test/ai-recommendation-test.js test/meter-alerts-test.js",
     "server": "node server/index.js",
     "seed": "node server/seed.js",
     "dev:all": "concurrently -k -n API,WEB -c green,blue \"npm:server\" \"vite --host 0.0.0.0\"",
@@ -23,7 +24,8 @@
     "ollama": "^0.6.4",
     "react": "^18.3.1",
     "react-dom": "^18.3.1",
-    "recharts": "^2.15.0"
+    "recharts": "^2.15.0",
+    "sql.js": "^1.12.0"
   },
   "devDependencies": {
     "@vitejs/plugin-react": "^4.3.4",

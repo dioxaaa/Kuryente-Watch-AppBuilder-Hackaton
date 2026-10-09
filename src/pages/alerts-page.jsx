@@ -1,5 +1,5 @@
 import { useMemo, useState } from 'react'
-import { Bell, BellRing, Check, CheckCheck, ChevronDown, ChevronUp, Clock3, Info, LineChart, RefreshCw, ScanSearch, ShieldAlert, Sparkles, X, Zap } from 'lucide-react'
+import { Bell, BellRing, Gauge, Check, CheckCheck, ChevronDown, ChevronUp, Clock3, Info, LineChart, RefreshCw, ScanSearch, ShieldAlert, Sparkles, X, Zap } from 'lucide-react'
 import { PageTitle } from '../components/page-title'
 import { EmptyState } from '../components/empty-state'
 import { DeviceChart } from '../components/device-chart'
@@ -39,7 +39,18 @@ function AiExplanation({ alert, onExplain }) {
   )
 }
 
-export function AlertsPage({ alerts, appliances = [], rate = 0, loaded, offline, onUpdate, onExplain, onScan, onToast }) {
+function MeterCheck({ status }) {
+  if (!status) return null
+  const { latest } = status
+  const text = latest
+    ? <><strong>Meter check is on.</strong> Your usual use is {latest.expectedKwhPerDay} kWh/day and your latest is {latest.observedKwhPerDay} kWh/day. You get an alert above {latest.warnAboveKwhPerDay} kWh/day.</>
+    : <><strong>Meter check is learning.</strong> {status.readings === 0
+      ? 'Save 3 meter readings, each about a day apart, to turn on alerts.'
+      : `Add ${status.neededReadings} more reading${status.neededReadings === 1 ? '' : 's'}, each about a day after the last one. Readings less than 18 hours apart are combined.`}</>
+  return <div className="demo-banner meter-check" role="status"><Gauge size={16} /><span>{text}</span></div>
+}
+
+export function AlertsPage({ meterCheck, alerts, appliances = [], rate = 0, loaded, offline, onUpdate, onExplain, onScan, onToast }) {
   const [filter, setFilter] = useState('All alerts')
   const [chartOpen, setChartOpen] = useState(() => new Set())
   const [scanning, setScanning] = useState(false)
@@ -85,7 +96,7 @@ export function AlertsPage({ alerts, appliances = [], rate = 0, loaded, offline,
         ? { title: 'Can’t reach the local server', description: 'Start it with npm run server, then open this page again.' }
         : !loaded
           ? { title: 'Loading alerts…', description: 'Checking the local database.' }
-          : { title: 'Nothing unusual found', description: 'The local detector has not flagged a usage pattern. Scan your readings to check for new signals.' }
+          : { title: 'Nothing unusual found', description: 'Alerts come from your meter readings. Save at least 3 readings, each about a day apart, and you will be warned when daily use jumps 25% or more above your usual.' }
 
   return (
     <>
@@ -99,6 +110,7 @@ export function AlertsPage({ alerts, appliances = [], rate = 0, loaded, offline,
         </div>}
       />
       <div className="demo-banner"><Info size={16} /><span><strong>Signals, not diagnoses.</strong> An unusual reading does not confirm that an appliance is faulty.</span></div>
+      <MeterCheck status={meterCheck} />
       <section className="panel alerts-panel">
         <div className="alerts-toolbar">
           <div className="filter-tabs alert-tabs" role="group" aria-label="Filter alerts">
@@ -127,9 +139,9 @@ export function AlertsPage({ alerts, appliances = [], rate = 0, loaded, offline,
                     <span className="alert-context">{alert.context}</span>
                     {impact.moneyText && <span className="alert-impact"><Zap size={12} /> {impact.name} · about {impact.extraKwh < 1 ? impact.extraKwh.toFixed(2) : impact.extraKwh.toFixed(1)} kWh extra · <b>{impact.moneyText}</b></span>}
                     <p>{alert.description}</p>
-                    <button className="text-button alert-chart-toggle" aria-expanded={chartOpen.has(alert.id)} onClick={() => toggleChart(alert.id)}>
+                    {alert.type !== 'usage-jump' && <button className="text-button alert-chart-toggle" aria-expanded={chartOpen.has(alert.id)} onClick={() => toggleChart(alert.id)}>
                       <LineChart size={13} /> {chartOpen.has(alert.id) ? 'Hide chart' : 'Show on chart'} {chartOpen.has(alert.id) ? <ChevronUp size={13} /> : <ChevronDown size={13} />}
-                    </button>
+                    </button>}
                     {chartOpen.has(alert.id) && <DeviceChart device={alert.device} alertId={alert.id} compact />}
                     <AiExplanation alert={alert} onExplain={onExplain} />
                     <div className="alert-meta"><span><Clock3 size={13} /> {formatWhen(alert.happenedAt)}</span></div>

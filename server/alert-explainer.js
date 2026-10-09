@@ -6,6 +6,7 @@ import { callOllama, httpError } from './assistant.js'
 const WHAT_HAPPENED = {
   'spike': 'a sudden spike: one reading was far above anything this device has drawn before',
   'sustained-high': 'power stayed higher than normal for a long stretch',
+  'usage-jump': 'the whole household used clearly more electricity per day since the previous meter reading than it usually does',
   'sustained-low': 'power stayed much lower than normal for a long stretch (the device may not have been running)',
 }
 
@@ -22,6 +23,7 @@ const round = (n, d = 0) => Math.round(Number(n) * 10 ** d) / 10 ** d
 const when = iso => String(iso).replace('T', ' ').slice(0, 16)
 
 export function buildExplainMessages(alert, { device, rate } = {}) {
+  if (alert.type === 'usage-jump') return buildMeterMessages(alert, { rate })
   const name = device?.label || alert.device
   const lines = [
     `Device: ${name}${device?.ratedWatts ? ` (rated about ${round(device.ratedWatts)} W)` : ''}`,
@@ -35,6 +37,24 @@ export function buildExplainMessages(alert, { device, rate } = {}) {
     if (rate > 0) lines.push(`Estimated extra cost: about PHP ${round(alert.excessKwh * rate, 2)} at PHP ${rate} per kWh`)
   }
   lines.push(`Severity: ${alert.severity}`)
+  return [
+    { role: 'system', content: SYSTEM_PROMPT },
+    { role: 'user', content: `Alert facts:\n${lines.join('\n')}\n\nExplain this alert to the household.` },
+  ]
+}
+
+function buildMeterMessages(alert, { rate } = {}) {
+  const lines = [
+    'Source: the household main electricity meter (whole home, not one appliance)',
+    `What happened: ${WHAT_HAPPENED['usage-jump']}`,
+    `Period: ${when(alert.periodStart)} to ${when(alert.end ?? alert.start)}, about ${round(alert.days, 1)} days`,
+    `Average use: ${round(alert.observedKwhPerDay, 2)} kWh per day, versus a usual ${round(alert.expectedKwhPerDay, 2)} kWh per day (${round(alert.ratio, 1)}x)`,
+  ]
+  if (alert.excessKwh > 0) {
+    lines.push(`Extra energy used: about ${round(alert.excessKwh, 2)} kWh`)
+    if (rate > 0) lines.push(`Estimated extra cost: about PHP ${round(alert.excessKwh * rate, 2)} at PHP ${rate} per kWh`)
+  }
+  lines.push(`Severity: ${alert.severity}`, 'The meter cannot tell which appliance caused it. Suggest checking the biggest users, such as air conditioners, refrigerators, water heaters, or anything left on.')
   return [
     { role: 'system', content: SYSTEM_PROMPT },
     { role: 'user', content: `Alert facts:\n${lines.join('\n')}\n\nExplain this alert to the household.` },
