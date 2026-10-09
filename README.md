@@ -61,6 +61,7 @@ KuryenteWatch works fully on the device when the Node server cannot be reached: 
 - **Data:** profile, settings, meter readings, and appliances are saved in this browser's IndexedDB (`src/local-api.js`, via Dexie). They stay on this device and are not copied into SQLite later.
 - **Assistant:** the dashboard widget and the Assistant chat are answered by a built-in, rule-based responder (`src/utils/offline-assistant.js`) using the saved readings and appliances. The model picker shows **On-device assistant**. The same responder answers when the server is running but Ollama has no model.
 - **Meter photo scan:** the photo is read in the browser with Tesseract (`tesseract.js`, WebAssembly) in `src/utils/offline-ocr.js`. The worker, OCR engine, and English language data are bundled with the build (served from the app's own origin, never a CDN), so it works offline. The longest number on the display is suggested as the kWh value; check it before saving. If no digits are found, type the reading manually. When the server is running but its Ollama vision model is unavailable, the same on-device OCR is used.
+- **Appliance label photo:** choosing a label photo in the appliance form reads it with the same bundled Tesseract. The photo is tried upright and turned both ways (labels are often shot sideways), in grayscale with stretched contrast, and the rated watts (`23W`, `1.2kW`), model number (`ML-AJ580-5`) and known brand names seen most often are filled in. Fields it cannot read stay as typed. With the server running, the Ollama vision model reads the label and also names the appliance; without a vision model the on-device OCR is used.
 - **Device telemetry:** device power monitoring and detector alerts need the server; on the device they are simply empty.
 - **Switching back:** while in on-device mode the app re-checks `/api/health` every 30 seconds of use, when the page becomes visible again, and when the network comes back. When the real server answers, the app switches back to it and reloads the server's data.
 
@@ -116,6 +117,7 @@ The server binds to `127.0.0.1` by default (override with `HOST`, see the networ
 | `GET` | `/api/assistant/status` | List locally installed Ollama models and report availability |
 | `POST` | `/api/assistant/chat` | Generate a response with local Ollama and saved household context |
 | `POST` | `/api/meter-readings/read-photo` | Suggest a kWh value from a meter photo with the local Ollama vision model |
+| `POST` | `/api/appliances/read-label` | Suggest appliance name, category, brand, model and rated watts from a rating label photo with the local Ollama vision model |
 
 Legacy local detector routes remain available: `/api/devices`, `/api/devices/:name/readings`, `/api/devices/:name/train`, `/api/devices/:name/scan`, and `/api/devices/:name/baseline`. Device power telemetry remains separate from cumulative household meter readings.
 
@@ -133,7 +135,7 @@ For an offline check, first run the production build and local server, open the 
 ## Product boundaries
 
 - Electricity estimates use the configured rate and calculated meter-reading differences; appliance usage is estimated from rated watts and hours.
-- Meter photos are read by the local Ollama vision model when the server is running, or by on-device Tesseract OCR otherwise. Both only suggest a value that the person confirms before saving. Appliance label images are browser previews only.
+- Meter photos are read by the local Ollama vision model when the server is running, or by on-device Tesseract OCR otherwise. Both only suggest a value that the person confirms before saving. Appliance rating label photos are read the same way (vision model on the server, Tesseract on the device) to suggest the name, category, brand, model and rated watts; the person checks them and adds the hours used before saving.
 - The Energy Assistant uses actual local Ollama inference when the Ollama runtime and a model are available; it is not a cloud AI integration.
 - The existing detector is a local statistical/rule-based feature, not an AI model or appliance fault diagnosis.
 - This project does not synchronize data between on-device mode (IndexedDB) and the server's SQLite database; records saved in one are not copied to the other.

@@ -1,9 +1,11 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
-import { AirVent, Fan, Lightbulb, Pencil, Plus, Refrigerator, Search, Tv, WashingMachine, X, Zap, Trash2 } from 'lucide-react'
+import { AirVent, Check, Fan, Lightbulb, Pencil, Plus, Refrigerator, ScanLine, Search, Tv, WashingMachine, X, Zap, Trash2 } from 'lucide-react'
+import { api } from '../api'
 import { ConfirmModal } from '../components/confirm-modal'
 import { EmptyState } from '../components/empty-state'
 import { PageTitle } from '../components/page-title'
 import { formatPeso } from '../utils/energy-utils'
+import { photoToJpegDataUrl } from '../utils/image'
 
 const categories = ['All appliances', 'Refrigerator', 'Electric fan', 'Air conditioner', 'Rice cooker', 'Television', 'Washing machine', 'Other']
 const icons = { Refrigerator, 'Electric fan': Fan, 'Air conditioner': AirVent, 'Rice cooker': Zap, Television: Tv, 'Washing machine': WashingMachine, Other: Lightbulb }
@@ -13,6 +15,9 @@ function ApplianceModal({ appliance, onClose, onSave }) {
   const [form, setForm] = useState(appliance ? { ...appliance } : emptyForm)
   const [error, setError] = useState('')
   const [photo, setPhoto] = useState('')
+  const [reading, setReading] = useState(false)
+  const [labelNote, setLabelNote] = useState('')
+  const [labelError, setLabelError] = useState('')
   const inputRef = useRef(null)
   useEffect(() => () => { if (photo) URL.revokeObjectURL(photo) }, [photo])
 
@@ -31,6 +36,30 @@ function ApplianceModal({ appliance, onClose, onSave }) {
     if (file.size > 10 * 1024 * 1024) return setError('Choose an image smaller than 10 MB.')
     if (photo) URL.revokeObjectURL(photo)
     setPhoto(URL.createObjectURL(file))
+    readLabel(file)
+  }
+  // Fills the form from the label photo (local vision model, or on-device OCR without the server). Typed values are kept.
+  async function readLabel(file) {
+    setReading(true)
+    setLabelNote('')
+    setLabelError('')
+    try {
+      const found = await api.post('/appliances/read-label', { image: await photoToJpegDataUrl(file) })
+      setForm(current => ({
+        ...current,
+        name: current.name.trim() ? current.name : found.name,
+        category: current.name.trim() && found.category === 'Other' ? current.category : found.category,
+        watts: found.watts ? String(found.watts) : current.watts,
+        brand: found.brand || current.brand || '',
+        model: found.model || current.model || '',
+      }))
+      const parts = [found.watts && `${found.watts} W`, found.brand, found.model && `model ${found.model}`].filter(Boolean)
+      setLabelNote(`Filled in ${parts.join(', ')} from the label (${found.engine}). Check the details and add the hours used before saving.`)
+    } catch (failure) {
+      setLabelError(failure.message || 'Could not read this label. Please type the details manually.')
+    } finally {
+      setReading(false)
+    }
   }
   return (
     <div className="modal-backdrop" onMouseDown={event => { if (event.target === event.currentTarget) onClose() }}>
@@ -42,9 +71,11 @@ function ApplianceModal({ appliance, onClose, onSave }) {
           <div className="field-grid"><div className="field-group"><label htmlFor="appliance-category">Category</label><select id="appliance-category" name="category" value={form.category} onChange={change}>{categories.slice(1).map(category => <option key={category}>{category}</option>)}</select></div><div className="field-group"><label htmlFor="appliance-watts">Rated power <span className="required">*</span></label><div className="input-with-unit"><input id="appliance-watts" name="watts" type="number" min="1" max="100000" value={form.watts} onChange={change} placeholder="e.g. 150" /><span>W</span></div></div></div>
           <div className="field-grid"><div className="field-group"><label htmlFor="appliance-hours">Hours used per day <span className="required">*</span></label><div className="input-with-unit"><input id="appliance-hours" name="hours" type="number" min="0.1" max="24" step="0.1" value={form.hours} onChange={change} placeholder="e.g. 8" /><span>hrs</span></div></div><div className="field-group"><label htmlFor="appliance-pattern">Usage pattern</label><select id="appliance-pattern" name="pattern" value={form.pattern || 'Daily'} onChange={change}>{['Daily', 'Weekdays', 'Weekends', 'Occasional'].map(pattern => <option key={pattern}>{pattern}</option>)}</select></div></div>
           <div className="field-grid"><div className="field-group"><label htmlFor="appliance-brand">Brand <span className="optional">(optional)</span></label><input id="appliance-brand" name="brand" maxLength={100} value={form.brand || ''} onChange={change} placeholder="Brand name" /></div><div className="field-group"><label htmlFor="appliance-model">Model <span className="optional">(optional)</span></label><input id="appliance-model" name="model" maxLength={100} value={form.model || ''} onChange={change} placeholder="Model number" /></div></div>
-          <label className="field-label" htmlFor="appliance-label-photo">Rating label photo <span className="optional">(optional · preview only)</span></label>
-          {photo && <div className="label-photo-preview"><img src={photo} alt="Appliance rating label preview" /><button type="button" className="button button-secondary button-small" onClick={() => { URL.revokeObjectURL(photo); setPhoto('') }}>Remove photo</button></div>}
-          <label className="mini-upload" htmlFor="appliance-label-photo"><input ref={inputRef} id="appliance-label-photo" type="file" accept="image/*" capture="environment" onChange={event => { choosePhoto(event.target.files?.[0]); event.target.value = '' }} /><span><Plus size={15} /> {photo ? 'Choose a different label photo' : 'Take or choose a label photo'}</span><small>OCR not connected</small></label>
+          <label className="field-label" htmlFor="appliance-label-photo">Rating label photo <span className="optional">(optional · fills in the details)</span></label>
+          {photo && <div className="label-photo-preview"><img src={photo} alt="Appliance rating label preview" /><button type="button" className="button button-secondary button-small" onClick={() => { URL.revokeObjectURL(photo); setPhoto(''); setLabelNote(''); setLabelError('') }}>Remove photo</button></div>}
+          <label className="mini-upload" htmlFor="appliance-label-photo"><input ref={inputRef} id="appliance-label-photo" type="file" accept="image/*" capture="environment" onChange={event => { choosePhoto(event.target.files?.[0]); event.target.value = '' }} /><span><Plus size={15} /> {photo ? 'Choose a different label photo' : 'Take or choose a label photo'}</span><small>{reading ? <><ScanLine size={13} /> Reading label…</> : 'Reads watts, brand and model'}</small></label>
+          {labelNote && <p className="photo-note"><Check size={14} /> {labelNote}</p>}
+          {labelError && <p className="form-error" role="alert">{labelError}</p>}
           {error && <p className="form-error" role="alert">{error}</p>}
           <div className="modal-actions"><button type="button" className="button button-secondary" onClick={onClose}>Cancel</button><button type="submit" className="button button-primary"><Plus size={15} /> {appliance ? 'Save changes' : 'Add appliance'}</button></div>
         </form>
