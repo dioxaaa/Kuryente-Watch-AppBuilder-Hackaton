@@ -301,7 +301,7 @@ export default function App() {
       case 'meter':
         return <MeterPage readings={readings} rate={settings.ratePerKwh} onSave={saveReading} onToast={showToast} />
       case 'appliances':
-        return <AppliancesPage appliances={appliances} onAdd={addAppliance} onUpdate={updateAppliance} onDelete={deleteAppliance} rate={settings.ratePerKwh} onToast={showToast} />
+        return <AppliancesPage appliances={appliances} readings={readings} onAdd={addAppliance} onUpdate={updateAppliance} onDelete={deleteAppliance} rate={settings.ratePerKwh} onToast={showToast} />
       case 'history':
         return <HistoryPage readings={readings} onToast={showToast} />
       case 'alerts':

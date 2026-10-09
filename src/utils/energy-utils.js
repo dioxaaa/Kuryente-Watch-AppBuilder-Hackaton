@@ -37,3 +37,17 @@ export function usageFromReadings(readings) {
   }
   return points
 }
+
+// kWh the meter recorded since `since`, counted from the reading just before it, plus the average per day.
+// Readings are oldest first ({ recordedAt, usageKwh }). Null until the readings span most of a day.
+export function meterDailyUse(readings, since) {
+  const start = readings.findIndex(reading => new Date(reading.recordedAt) >= since)
+  if (start === -1) return null
+  const from = readings[Math.max(start - 1, 0)]
+  const kwh = readings.slice(Math.max(start, 1)).reduce((sum, reading) => sum + (reading.usageKwh ?? 0), 0)
+  const days = (new Date(readings.at(-1).recordedAt) - new Date(from.recordedAt)) / 86400000
+  if (days < 0.75) return null
+  return { kwh, days, perDay: kwh / days, from: from.recordedAt }
+}
+
+export const daysInMonth = (date = new Date()) => new Date(date.getFullYear(), date.getMonth() + 1, 0).getDate()

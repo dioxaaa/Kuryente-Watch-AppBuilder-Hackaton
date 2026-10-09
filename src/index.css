@@ -1318,3 +1318,8 @@ body { background: var(--bg); letter-spacing: -.005em; }
 .setup-brand .brand-copy strong { color: var(--ink); }
 .setup-brand .brand-copy strong span { color: var(--brand); }
 [data-theme="dark"] .setup-brand .brand-copy strong { color: #eef5f0; }
+.meter-compare { display: flex; align-items: flex-start; gap: 9px; margin: 0 0 15px; padding: 11px 15px; border: 1px solid var(--line); border-radius: var(--radius); color: #3d5546; background: var(--paper); font-size: 13px; line-height: 1.55; }
+.meter-compare > svg { flex: 0 0 auto; margin-top: 2px; color: var(--brand-dark); }
+.meter-compare strong { color: var(--ink); }
+[data-theme="dark"] .meter-compare { border-color: #234030; color: #b9cfc1; background: #12231a; }
+[data-theme="dark"] .meter-compare > svg, [data-theme="dark"] .meter-compare strong { color: var(--brand); }

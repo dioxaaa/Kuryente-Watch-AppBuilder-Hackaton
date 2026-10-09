@@ -1,9 +1,9 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
-import { AirVent, Fan, Lightbulb, Pencil, Plus, Refrigerator, Search, Tv, WashingMachine, X, Zap, Trash2 } from 'lucide-react'
+import { AirVent, Fan, Lightbulb, Pencil, Plus, Refrigerator, Search, Tv, WashingMachine, X, Zap, Trash2, Gauge } from 'lucide-react'
 import { ConfirmModal } from '../components/confirm-modal'
 import { EmptyState } from '../components/empty-state'
 import { PageTitle } from '../components/page-title'
-import { formatPeso } from '../utils/energy-utils'
+import { formatDate, formatPeso, meterDailyUse } from '../utils/energy-utils'
 
 const categories = ['All appliances', 'Refrigerator', 'Electric fan', 'Air conditioner', 'Rice cooker', 'Television', 'Washing machine', 'Other']
 const icons = { Refrigerator, 'Electric fan': Fan, 'Air conditioner': AirVent, 'Rice cooker': Zap, Television: Tv, 'Washing machine': WashingMachine, Other: Lightbulb }
@@ -53,13 +53,32 @@ function ApplianceModal({ appliance, onClose, onSave }) {
   )
 }
 
-export function AppliancesPage({ appliances, onAdd, onUpdate, onDelete, rate, onToast }) {
+function MeterComparison({ meter, listDaily, rate }) {
+  if (!meter) {
+    return <p className="meter-compare"><Gauge size={16} /><span>Save meter readings about a day apart to compare this estimate with what your meter actually records.</span></p>
+  }
+  const ratio = listDaily / meter.perDay
+  const verdict = ratio > 1.2
+    ? 'Your list is higher than the meter: refrigerators and aircons switch on and off, so they rarely use their full rated watts for all the hours entered.'
+    : ratio < 0.8
+      ? 'Your list is lower than the meter: the rest is likely appliances not listed yet, like lights, chargers or a water pump.'
+      : 'Your list and your meter roughly match.'
+  return (
+    <p className="meter-compare"><Gauge size={16} /><span>
+      <strong>Meter check:</strong> since {formatDate(meter.from)} your meter recorded about <strong>{meter.perDay.toFixed(1)} kWh/day</strong> ({formatPeso(meter.perDay * 30 * rate)} for 30 days). Your appliance list adds up to <strong>{listDaily.toFixed(1)} kWh/day</strong>. {verdict}
+    </span></p>
+  )
+}
+
+export function AppliancesPage({ appliances, readings = [], onAdd, onUpdate, onDelete, rate, onToast }) {
   const [filter, setFilter] = useState('All appliances')
   const [search, setSearch] = useState('')
   const [modal, setModal] = useState(undefined)
   const [deleteTarget, setDeleteTarget] = useState(null)
   const shown = useMemo(() => appliances.filter(item => (filter === 'All appliances' || item.category === filter) && `${item.name} ${item.category}`.toLowerCase().includes(search.toLowerCase())), [appliances, filter, search])
   const totalDaily = shown.reduce((sum, appliance) => sum + (appliance.watts * appliance.hours) / 1000, 0)
+  const listDaily = appliances.reduce((sum, appliance) => sum + (appliance.watts * appliance.hours) / 1000, 0)
+  const meter = meterDailyUse(readings, new Date(Date.now() - 30 * 86400000))
 
   async function save(item) {
     const editing = Boolean(modal?.id)
@@ -78,8 +97,9 @@ export function AppliancesPage({ appliances, onAdd, onUpdate, onDelete, rate, on
   return (
     <>
       <PageTitle eyebrow="YOUR HOUSEHOLD" title="My appliances" description="Keep a household inventory and estimate energy use from each rating label." action={<button className="button button-primary" onClick={() => setModal(null)}><Plus size={17} /> Add appliance</button>} />
-      <div className="demo-banner"><Zap size={16} /><span><strong>Rated-power estimates.</strong> Watts × daily hours. Actual appliance consumption may differ.</span></div>
-      <div className="appliance-overview"><div><span>REGISTERED APPLIANCES</span><strong>{appliances.length}</strong></div><i /><div><span>ESTIMATED DAILY USE</span><strong>{totalDaily.toFixed(1)} <small>kWh/day</small></strong></div><i /><div><span>ESTIMATED MONTHLY COST</span><strong>{formatPeso(totalDaily * 30 * rate)} <small>/ month</small></strong></div></div>
+      <div className="demo-banner"><Zap size={16} /><span><strong>Label estimates.</strong> Rated watts × the hours you entered, as if each appliance ran at full power the whole time. Your real use comes from your meter readings.</span></div>
+      <div className="appliance-overview"><div><span>REGISTERED APPLIANCES</span><strong>{appliances.length}</strong></div><i /><div><span>LABEL ESTIMATE / DAY</span><strong>{totalDaily.toFixed(1)} <small>kWh/day</small></strong></div><i /><div><span>LABEL ESTIMATE / 30 DAYS</span><strong>{formatPeso(totalDaily * 30 * rate)} <small>/ month</small></strong></div></div>
+      {appliances.length > 0 && <MeterComparison meter={meter} listDaily={listDaily} rate={rate} />}
       <section className="panel appliances-panel">
         <div className="appliances-toolbar">
           <div className="filter-tabs" role="group" aria-label="Filter by appliance category">

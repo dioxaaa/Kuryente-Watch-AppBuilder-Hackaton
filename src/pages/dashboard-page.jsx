@@ -4,7 +4,7 @@ import { StatCard } from '../components/stat-card'
 import { UsageChart } from '../components/usage-chart'
 import { EmptyState } from '../components/empty-state'
 import { AssistantWidget } from '../components/assistant-widget'
-import { formatDate, formatPeso } from '../utils/energy-utils'
+import { daysInMonth, formatDate, formatPeso, meterDailyUse } from '../utils/energy-utils'
 
 export function DashboardPage({ profile, readings, alerts, appliances, rate, onNavigate }) {
   const current = readings.at(-1)
@@ -14,6 +14,8 @@ export function DashboardPage({ profile, readings, alerts, appliances, rate, onN
   startOfMonth.setHours(0, 0, 0, 0)
   const intervalsThisMonth = readings.filter(reading => new Date(reading.recordedAt) >= startOfMonth && reading.usageKwh !== null)
   const monthUsage = intervalsThisMonth.reduce((sum, reading) => sum + reading.usageKwh, 0)
+  const pace = meterDailyUse(readings, startOfMonth)
+  const projectedKwh = pace ? pace.perDay * daysInMonth() : null
   const chartData = readings.filter(reading => reading.usageKwh !== null).slice(-7).map(reading => ({
     day: new Intl.DateTimeFormat('en-PH', { month: 'short', day: 'numeric' }).format(new Date(reading.recordedAt)),
     usage: Number(reading.usageKwh.toFixed(2)),
@@ -30,10 +32,10 @@ export function DashboardPage({ profile, readings, alerts, appliances, rate, onN
         action={<button className="button button-primary" onClick={() => onNavigate('meter')}><Zap size={17} /> Add meter reading</button>}
       />
       <div className="stats-grid" aria-label="Household energy overview">
-        <StatCard label="Recorded use this month" value={intervalsThisMonth.length ? monthUsage.toFixed(1) : '—'} unit={intervalsThisMonth.length ? ' kWh' : ''} note={intervalsThisMonth.length ? 'Difference between meter readings' : 'Add another reading to calculate use'} icon={Zap} />
-        <StatCard label="Estimated bill" value={intervalsThisMonth.length ? formatPeso(monthUsage * rate) : '—'} note={`Estimate at ₱${Number(rate).toFixed(2)} / kWh`} icon={Gauge} tone="amber" />
-        <StatCard label="Latest meter reading" value={current?.readingKwh.toLocaleString() ?? '—'} unit={current ? ' kWh' : ''} note={current ? formatDate(current.recordedAt) : 'No reading recorded yet'} icon={Droplets} tone="blue" />
-        <StatCard label="Use since previous" value={current?.usageKwh != null ? current.usageKwh.toFixed(1) : '—'} unit={current?.usageKwh != null ? ' kWh' : ''} note={previous ? 'Calculated from cumulative readings' : 'Add a second reading to compare'} icon={Clock3} tone="purple" />
+        <StatCard label="Meter use so far this month" value={intervalsThisMonth.length ? monthUsage.toFixed(1) : '—'} unit={intervalsThisMonth.length ? ' kWh' : ''} note={pace ? `About ${pace.perDay.toFixed(1)} kWh a day from your readings` : intervalsThisMonth.length ? 'Difference between meter readings' : 'Add another reading to calculate use'} icon={Zap} />
+        <StatCard label="Bill so far this month" value={intervalsThisMonth.length ? formatPeso(monthUsage * rate) : '—'} note={projectedKwh != null ? <>Projected full month: <strong>{formatPeso(projectedKwh * rate)}</strong> ({projectedKwh.toFixed(0)} kWh)</> : `At ₱${Number(rate).toFixed(2)} / kWh · add readings a day apart to project the month`} icon={Gauge} tone="amber" />
+        <StatCard label="Latest meter reading" value={current?.readingKwh.toLocaleString() ?? '—'} unit={current ? ' kWh' : ''} note={current ? `Meter display on ${formatDate(current.recordedAt)}` : 'No reading recorded yet'} icon={Droplets} tone="blue" />
+        <StatCard label="Use since previous reading" value={current?.usageKwh != null ? current.usageKwh.toFixed(1) : '—'} unit={current?.usageKwh != null ? ' kWh' : ''} note={previous ? `${formatDate(previous.recordedAt)} to ${formatDate(current.recordedAt)}` : 'Add a second reading to compare'} icon={Clock3} tone="purple" />
       </div>
       <div className="dashboard-grid">
         <section className="panel chart-panel">
