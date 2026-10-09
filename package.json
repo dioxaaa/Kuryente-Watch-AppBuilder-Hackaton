@@ -8,7 +8,7 @@
     "build": "vite build",
     "build:web": "vite build --mode web --outDir dist-web",
     "preview": "vite preview",
-    "test": "node --test test/detector.test.js test/server.test.js test/app-api.test.js test/appliances-test.js test/meter-test.js test/alert-explainer-test.js test/scan-test.js test/meter-ocr-test.js test/chart-test.js test/alert-impact-test.js test/ai-recommendation-test.js test/meter-alerts-test.js",
+    "test": "node --test test/detector.test.js test/server.test.js test/app-api.test.js test/appliances-test.js test/meter-test.js test/alert-explainer-test.js test/scan-test.js test/meter-ocr-test.js test/chart-test.js test/alert-impact-test.js test/ai-recommendation-test.js test/meter-alerts-test.js test/offline-assistant-test.js",
     "server": "node server/index.js",
     "seed": "node server/seed.js",
     "dev:all": "concurrently -k -n API,WEB -c green,blue \"npm:server\" \"vite --host 0.0.0.0\"",

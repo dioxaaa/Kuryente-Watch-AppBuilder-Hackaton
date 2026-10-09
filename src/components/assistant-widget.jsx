@@ -2,6 +2,7 @@ import { useEffect, useRef, useState } from 'react'
 import { MessageCircle, Send, Sparkles, X } from 'lucide-react'
 import { buildAssistantContext } from '../utils/assistant-context'
 import { fetchAiRecommendation } from '../utils/api'
+import { api } from '../api'
 
 const quickQuestions = ['Why is my bill high?', 'Which appliance uses the most?', 'How can I save electricity?']
 const greeting = "Hi! I'm your energy assistant. Ask me about your electricity usage and I'll explain it in simple words."
@@ -38,23 +39,15 @@ export function AssistantWidget(props) {
         const resData = await fetchAiRecommendation(
           matchedAppliance.name,
           matchedAppliance.watts,
-          matchedAppliance.hours
+          matchedAppliance.hours,
+          matchedAppliance.category
         )
         reply = resData.insight || resData.recommendation
         if (!reply) throw new Error(resData.error || 'Something went wrong. Please try again.')
       } else {
         // Everything else ("Why is my bill high?", saving tips, ...) is answered from the real meter readings, appliances and alerts
         const history = messages.filter(m => !m.error).map(({ role, content }) => ({ role, content }))
-        const res = await fetch('/api/assistant', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ question, history, context: buildAssistantContext(props) }),
-        })
-        const data = await res.json().catch(() => ({}))
-        if (!res.ok) {
-          if (!data.error && res.status >= 500) throw new TypeError('offline') // Vite's proxy answers 5xx when nothing is listening
-          throw new Error(data.error || 'Something went wrong. Please try again.')
-        }
+        const data = await api.post('/assistant', { question, history, context: buildAssistantContext(props) })
         reply = data.reply
       }
 

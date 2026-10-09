@@ -1,21 +1,14 @@
+import { api } from '../api.js';
+
 const API_BASE = '/api'; // same-origin; Vite forwards /api to the local server (see vite.config.ts)
 
 /**
  * Fetch local AI recommendation for an appliance
  */
-export async function fetchAiRecommendation(applianceName, ratedWatts, hoursPerDay) {
+export async function fetchAiRecommendation(applianceName, ratedWatts, hoursPerDay, category) {
   try {
-    const response = await fetch(`${API_BASE}/ai/recommendation`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ applianceName, ratedWatts, hoursPerDay }),
-    });
-
-    if (!response.ok) {
-      throw new Error(`HTTP error! status: ${response.status}`);
-    }
-
-    return await response.json();
+    // api() answers with the built-in assistant when the server or Ollama is unavailable
+    return await api.post('/ai/recommendation', { applianceName, ratedWatts, hoursPerDay, category });
   } catch (error) {
     console.error('API Fetch Error:', error);
     return { success: false, error: 'Could not connect to backend server.' };

@@ -48,7 +48,11 @@ export default defineConfig(({ mode }) => ({
         start_url: '/',
         icons: [{ src: '/icon.svg', sizes: 'any', type: 'image/svg+xml', purpose: 'any maskable' }],
       },
-      workbox: { globPatterns: [mode === 'web' ? '**/*.{js,css,html,svg,webmanifest,wasm,woff2}' : '**/*.{js,css,html,svg,webmanifest}'] },
+      workbox: {
+        globPatterns: [mode === 'web' ? '**/*.{js,css,html,svg,png,ico,woff2,webmanifest,wasm}' : '**/*.{js,css,html,svg,png,ico,woff2,webmanifest}'],
+        navigateFallback: '/index.html',
+        navigateFallbackDenylist: [/^\/api\//],
+      },
     }),
   ],
 }))

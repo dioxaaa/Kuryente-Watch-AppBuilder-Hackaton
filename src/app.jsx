@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
-import { api } from './api'
+import { api, isLocalMode } from './api'
 import { AppHeader } from './components/app-header'
 import { AppSidebar } from './components/app-sidebar'
 import { ErrorMessage } from './components/error-message'
@@ -39,6 +39,7 @@ export default function App() {
   const [mobileOpen, setMobileOpen] = useState(false)
   const [backendError, setBackendError] = useState('')
   const [backendConnected, setBackendConnected] = useState(false)
+  const [localMode, setLocalMode] = useState(false)
   const [networkOnline, setNetworkOnline] = useState(navigator.onLine)
   const [profile, setProfile] = useState(null)
   const [readings, setReadings] = useState([])
@@ -73,6 +74,7 @@ export default function App() {
     try {
       await api('/health')
       setBackendConnected(true)
+      setLocalMode(isLocalMode())
       const [{ profile: savedProfile }, savedSettings] = await Promise.all([api('/profile'), api('/settings')])
       setSettings(savedSettings)
       setProfile(savedProfile)
@@ -320,11 +322,11 @@ export default function App() {
     <div className="app-shell">
       <AppSidebar activePage={activePage} onNavigate={navigate} mobileOpen={mobileOpen} onClose={() => setMobileOpen(false)} alertCount={unreadCount} userName={profile.userName} householdName={profile.householdName} />
       <div className="app-main">
-        <AppHeader title={pageTitles[activePage]} unreadCount={unreadCount} onMenu={() => setMobileOpen(true)} onAlerts={() => navigate('alerts')} onProfile={() => navigate('settings')} onSearch={() => navigate('appliances')} backendConnected={backendConnected} networkOnline={networkOnline} userName={profile.userName} />
+        <AppHeader title={pageTitles[activePage]} unreadCount={unreadCount} onMenu={() => setMobileOpen(true)} onAlerts={() => navigate('alerts')} onProfile={() => navigate('settings')} onSearch={() => navigate('appliances')} backendConnected={backendConnected} localMode={localMode} networkOnline={networkOnline} userName={profile.userName} />
         <main className="main-content" key={activePage}>
           {backendError ? <ErrorMessage message={backendError} onRetry={() => loadWorkspace({ initial: true })} /> : page}
         </main>
-        <footer className="app-footer"><span>© 2026 KuryenteWatch</span><span><i /> Local SQLite · {networkOnline ? 'Network connected' : 'Internet offline'}</span><button onClick={() => navigate('settings')}>Profile & settings</button></footer>
+        <footer className="app-footer"><span>© 2026 KuryenteWatch</span><span><i /> {localMode ? 'Saved on this device' : 'Local SQLite'} · {networkOnline ? 'Network connected' : 'Internet offline'}</span><button onClick={() => navigate('settings')}>Profile & settings</button></footer>
       </div>
       {toast && <div className={`toast ${toastKind === 'error' ? 'toast-error' : ''}`} role={toastKind === 'error' ? 'alert' : 'status'}><span><span className="toast-check">{toastKind === 'error' ? '!' : '✓'}</span>{toast}</span><button aria-label="Dismiss notification" onClick={() => setToast('')}>×</button></div>}
     </div>

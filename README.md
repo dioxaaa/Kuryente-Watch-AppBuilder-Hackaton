@@ -1,4 +1,4 @@
-# KuryenteWatch — The Local Energy Detective
+# KuryenteWatch — The Local Energy Companion
 
 KuryenteWatch is a local household electricity PWA. The React interface talks to its loopback Node.js server; Express validates requests and stores application records in SQLite. No account or cloud database is required. The optional Energy Assistant uses an Ollama model running locally on the same computer.
 

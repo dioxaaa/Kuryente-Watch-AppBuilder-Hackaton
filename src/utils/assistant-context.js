@@ -18,6 +18,7 @@ export function usageSummary(readings) {
 
 // Sent to /api/assistant. Numbers only: the server writes the prompt, so the browser can never inject instructions.
 export function buildAssistantContext({ readings = [], appliances = [], alerts = [], rate, monthKwh } = {}) {
+  readings = readings.map(r => ({ ...r, kwh: r.kwh ?? r.readingKwh, date: r.date ?? r.recordedAt }))
   const latest = readings[readings.length - 1]
   const previous = readings[readings.length - 2]
   return {
