@@ -1,4 +1,5 @@
 // All SQL lives here. Functions take the db as the first argument.
+import { randomUUID } from 'node:crypto'
 const now = () => new Date().toISOString()
 
 // ---------- devices ----------
@@ -79,6 +80,30 @@ export function updateAlert(db, id, { read, dismissed }) {
 }
 export const unreadAlertCount = db => db.prepare('SELECT COUNT(*) n FROM alerts WHERE read = 0 AND dismissed = 0').get().n
 
+// ---------- appliances ----------
+const rowToAppliance = r => ({
+  id: r.id, name: r.name, category: r.category, watts: r.watts, hours: r.hours, pattern: r.pattern,
+  brand: r.brand ?? '', model: r.model ?? '', sample: !!r.sample, createdAt: r.created_at, updatedAt: r.updated_at,
+})
+export const getAppliance = (db, id) => {
+  const row = db.prepare('SELECT * FROM appliances WHERE id = ?').get(id)
+  return row ? rowToAppliance(row) : undefined
+}
+export const listAppliances = db => db.prepare('SELECT * FROM appliances ORDER BY created_at, rowid').all().map(rowToAppliance)
+export function addAppliance(db, a, { sample = false } = {}) {
+  const id = randomUUID()
+  db.prepare(`INSERT INTO appliances (id, name, category, watts, hours, pattern, brand, model, sample, created_at, updated_at)
+    VALUES (?,?,?,?,?,?,?,?,?,?,?)`).run(id, a.name, a.category, a.watts, a.hours, a.pattern, a.brand || null, a.model || null, sample ? 1 : 0, now(), now())
+  return getAppliance(db, id)
+}
+// Editing a built-in example makes it the user's own, so it is no longer labeled as a sample.
+export function updateAppliance(db, id, a) {
+  const changed = db.prepare(`UPDATE appliances SET name=?, category=?, watts=?, hours=?, pattern=?, brand=?, model=?, sample=0, updated_at=? WHERE id=?`)
+    .run(a.name, a.category, a.watts, a.hours, a.pattern, a.brand || null, a.model || null, now(), id).changes
+  return changed ? getAppliance(db, id) : undefined
+}
+export const deleteAppliance = (db, id) => db.prepare('DELETE FROM appliances WHERE id = ?').run(id).changes > 0
+
 // ---------- settings ----------
 export const setSetting = (db, key, value) =>
   db.prepare('INSERT INTO settings (key, value) VALUES (?,?) ON CONFLICT(key) DO UPDATE SET value=excluded.value').run(key, JSON.stringify(value))
@@ -89,5 +114,5 @@ export const getSetting = (db, key, fallback) => {
 
 // ---------- wipe everything ----------
 export function clearAllData(db) {
-  db.transaction(() => { for (const t of ['alerts', 'baselines', 'readings', 'devices', 'settings']) db.exec(`DELETE FROM ${t}`) })()
+  db.transaction(() => { for (const t of ['alerts', 'baselines', 'readings', 'devices', 'appliances', 'settings']) db.exec(`DELETE FROM ${t}`) })()
 }

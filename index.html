@@ -6,6 +6,17 @@
     <meta name="theme-color" content="#123a2d" />
     <meta name="description" content="A demo UI prototype for household electricity monitoring." />
     <title>KuryenteWatch — The Local Energy Detective</title>
+    <script>
+  (function () {
+    try {
+      var t = localStorage.getItem('theme');
+      if (t !== 'light' && t !== 'dark') {
+        t = matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light';
+      }
+      document.documentElement.setAttribute('data-theme', t);
+    } catch (e) {}
+  })();
+</script>
   </head>
   <body>
     <div id="root"></div>
