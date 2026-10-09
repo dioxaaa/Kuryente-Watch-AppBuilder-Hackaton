@@ -3,8 +3,9 @@ import react from '@vitejs/plugin-react'
 import { VitePWA } from 'vite-plugin-pwa'
 
 export default defineConfig({
-  server: { proxy: { '/api': 'http://127.0.0.1:3001' } }, // forwards /api calls to the local SQLite server
-  preview: { proxy: { '/api': 'http://127.0.0.1:3001' } }, // same for npm run preview
+  // host 0.0.0.0 lets other devices on the LAN open the UI; /api is still proxied to the API on this machine's loopback.
+  server: { host: '0.0.0.0', proxy: { '/api': 'http://127.0.0.1:3001' } }, // forwards /api calls to the local SQLite server
+  preview: { host: '0.0.0.0', proxy: { '/api': 'http://127.0.0.1:3001' } }, // same for npm run preview
   build: {
     rollupOptions: {
       output: {
