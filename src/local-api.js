@@ -2,6 +2,7 @@
 // (static hosting, a phone away from the home computer, or no network). Data lives in IndexedDB on this device.
 import Dexie from 'dexie'
 import { applianceTip, offlineAnswer } from './utils/offline-assistant.js'
+import { buildAssistantContext } from './utils/assistant-context.js'
 
 const db = new Dexie('kuryentewatch')
 db.version(1).stores({ kv: 'key', readings: 'id, recordedAt', appliances: 'id' })
@@ -13,7 +14,7 @@ const DEFAULT_APPLIANCES = [
   { name: 'Bedroom air conditioner', category: 'Air conditioner', ratedWatts: 900, hoursPerDay: 6 },
   { name: 'Rice cooker', category: 'Rice cooker', ratedWatts: 600, hoursPerDay: 1.5 },
 ]
-const PHOTO_MESSAGE = 'Reading a meter photo needs the local AI (Ollama) on a computer running KuryenteWatch. Please type the number shown on your meter.'
+export const BUILT_IN_MODEL = 'Built-in assistant'
 
 const now = () => new Date().toISOString()
 const newId = () => (crypto.randomUUID ? crypto.randomUUID() : `${Date.now()}-${Math.random().toString(16).slice(2)}`)
@@ -158,21 +159,54 @@ export async function localApi(path, { method = 'GET', body } = {}) {
   // Device power monitoring needs the home server; on this device there are no devices or detector alerts.
   if (route === '/alerts' || route === '/devices') return []
   if (route === '/scan') return { scanned: 0, skipped: [], newAlerts: 0, devices: [] }
+  if (route === '/alerts/meter-status') return null
   if (route === '/assistant' && method === 'POST') return offlineReply(body)
+  if (route === '/assistant/status') return builtInStatus()
+  if (route === '/assistant/chat' && method === 'POST') return builtInChat(body, next => localApi(next))
   if (route === '/ai/recommendation' && method === 'POST') return offlineRecommendation(body, (await settings()).ratePerKwh)
-  if (route === '/meter-readings/read-photo') fail(PHOTO_MESSAGE, 503)
+  if (route === '/meter-readings/read-photo' && method === 'POST') return readPhoto(body)
   fail('This feature needs the KuryenteWatch server on your home computer.', 404)
+}
+
+export function builtInStatus(error) {
+  return { available: true, local: true, models: [BUILT_IN_MODEL], defaultModel: BUILT_IN_MODEL, ...(error && { error }) }
+}
+
+// Assistant page chat answered on this device. `load` reads household records from wherever they live (IndexedDB or the server).
+export async function builtInChat(body = {}, load) {
+  const message = text(body.message, 'Message', 2000)
+  const [readings, appliances, alerts, { ratePerKwh }] = await Promise.all([
+    load('/readings'),
+    load('/appliances'),
+    load('/alerts').catch(() => []),
+    load('/settings'),
+  ])
+  const context = buildAssistantContext({
+    readings,
+    appliances: appliances.map(a => ({ ...a, watts: a.ratedWatts ?? a.watts, hours: a.hoursPerDay ?? a.hours })),
+    alerts,
+    rate: ratePerKwh,
+  })
+  return { reply: offlineAnswer(message, context), model: BUILT_IN_MODEL }
+}
+
+// Tesseract is loaded only when a photo is read, so it does not slow down opening the app.
+export async function readPhoto(body = {}) {
+  const { readMeterPhotoOnDevice } = await import('./utils/offline-ocr.js')
+  try {
+    return await readMeterPhotoOnDevice(body.image)
+  } catch (error) {
+    throw new LocalApiError(error.message, error.status || 422)
+  }
 }
 
 export function offlineReply(body = {}) {
   const question = String(body.question ?? '').trim()
   if (!question) fail('Please type a question.')
-  return { reply: offlineAnswer(question, body.context ?? {}), model: 'Built-in assistant' }
+  return { reply: offlineAnswer(question, body.context ?? {}), model: BUILT_IN_MODEL }
 }
 
 export function offlineRecommendation(body = {}, rate) {
   if (!body.applianceName || !body.ratedWatts) fail('Missing appliance name or rated watts.')
   return { success: true, appliance: String(body.applianceName).slice(0, 100), insight: applianceTip(body, rate) }
 }
-
-export { PHOTO_MESSAGE }
