@@ -12,7 +12,6 @@ import { HistoryPage } from './pages/history-page'
 import { MeterPage } from './pages/meter-page'
 import { SettingsPage } from './pages/settings-page'
 import { AdminPage } from './pages/admin-page'
-import { AssistantPage } from './pages/assistant-page'
 import { toViewAlert } from './utils/alerts'
 
 const pageTitles = {
@@ -21,7 +20,6 @@ const pageTitles = {
   appliances: 'My appliances',
   history: 'Energy history',
   alerts: 'Alerts',
-  assistant: 'Energy Assistant',
   settings: 'Profile & settings',
   admin: 'About this installation',
 }
@@ -294,8 +292,6 @@ export default function App() {
           onScan={scanForAlerts}
           onToast={showToast}
         />
-      case 'assistant':
-        return <AssistantPage />
       case 'settings':
         return <SettingsPage profile={profile} settings={settings} onSave={saveSettings} onResetProfile={resetProfile} onToast={showToast} />
       case 'admin':
