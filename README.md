@@ -19,6 +19,8 @@ npm run dev:all
 
 Open <http://127.0.0.1:5173>. Vite serves the frontend and forwards `/api` requests to the local Express server at <http://127.0.0.1:3001>. Both processes must stay running for database-backed features.
 
+Vite listens on `0.0.0.0`, so phones or laptops on the same network can open the UI too (see [Using KuryenteWatch from other devices on your network](#using-kuryentewatch-from-other-devices-on-your-network)).
+
 To run either process separately:
 
 ```powershell
@@ -51,11 +53,33 @@ ollama serve
 
 If Ollama is already running as a background service, just leave it running. Configure a different loopback Ollama port with `OLLAMA_HOST`, for example `$env:OLLAMA_HOST = 'http://127.0.0.1:11434'` before starting `npm start`. The server intentionally rejects non-loopback Ollama hosts to keep household prompts local. If Ollama is stopped or no model is installed, the Assistant page reports that state and provides a model refresh action; the rest of KuryenteWatch continues to work.
 
+## Using KuryenteWatch from other devices on your network
+
+The AI (Ollama), the SQLite database, and the Express API all stay on the host computer. Other devices only load the web UI, and the UI calls the same-origin `/api`, which the host answers.
+
+**Development / preview (default LAN mode):** `npm run dev:all` (or `npm run dev` / `npm run preview` with `npm run server`). Vite binds to `0.0.0.0` and proxies `/api` to the API on the host's loopback (`127.0.0.1:3001`), so the API itself never listens on the network.
+
+1. Find the host's LAN IP (`ipconfig` on Windows, `ip addr` / `ifconfig` on Linux/macOS), e.g. `192.168.1.20`.
+2. On the other device, open `http://192.168.1.20:5173` (or `:4173` for `npm run preview`).
+3. If it does not load, allow Node/Vite through the host firewall for private networks.
+
+**Production build (opt-in):** `npm start` serves the built `dist/` and the API on `127.0.0.1` only. To reach it from other devices, start it with `HOST=0.0.0.0` and open `http://<host-ip>:3001`:
+
+```powershell
+$env:HOST = '0.0.0.0'
+npm start
+```
+
+Over plain HTTP on a LAN IP, browsers will not register the service worker or offer PWA install; the app still works as a normal web page.
+
+> **Privacy warning:** the API has no login. Anyone on the same network who can reach the Vite port (dev/preview) or the API port (`HOST=0.0.0.0`) can read, change, or delete your readings, appliances, alerts, and settings, and can ask the assistant questions about them. Only enable LAN access on a trusted home network, never on public Wi-Fi, and stop the servers when you are done. Ollama is never exposed: the server still rejects non-loopback Ollama hosts.
+
 ## Local storage and privacy
 
 - Default SQLite file: `data/kuryentewatch.db`.
 - `data/`, `node_modules/`, `dist/`, and `.env` files are ignored by Git.
 - Existing device telemetry, detector alerts, appliance rows, and settings are preserved. Schema updates are additive; the legacy appliance columns are retained and mapped to the current API.
+- The SQLite data is unauthenticated. With the default LAN-enabled Vite dev/preview server (or `HOST=0.0.0.0` for `npm start`), devices on your network can access it; see the networking section above.
 - To use a different database file, set `KURYENTE_DB` before starting the server:
 
 ```powershell
@@ -67,7 +91,7 @@ On first launch, create a local profile and household. This is not an online acc
 
 ## Local API
 
-The server binds to `127.0.0.1` only. JSON is served from `/api`:
+The server binds to `127.0.0.1` by default (override with `HOST`, see the networking section). JSON is served from `/api`:
 
 | Method | Endpoint | Purpose |
 | --- | --- | --- |
