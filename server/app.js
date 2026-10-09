@@ -1,12 +1,15 @@
 // REST API over the local SQLite database. Runs on this machine only.
 import express from 'express'
 import * as repo from './repository.js'
-import { trainDevice, scanDevice } from './service.js'
+import { trainDevice, scanDevice, scanAllDevices } from './service.js'
 import { askAssistant } from './assistant.js'
+import { explainAlert } from './alert-explainer.js'
+import { readMeterPhoto } from './meter-ocr.js'
 import { cleanAppliance } from './appliances.js'
 import { cleanMeterReading } from './meter-readings.js'
 import { checkReading } from '../src/utils/meter-check.js'
-export function createApp(db) {
+// `chat` can be replaced in tests so they do not need a running Ollama.
+export function createApp(db, { chat } = {}) {
   const app = express()
   app.use(express.json({ limit: '50mb' })) // large CSV-sized imports
 
@@ -35,6 +38,7 @@ export function createApp(db) {
   // train / scan
   app.post('/api/devices/:name/train', wrap(req => trainDevice(db, req.params.name, range(req.body ?? {}))))
   app.post('/api/devices/:name/scan', wrap(req => scanDevice(db, req.params.name, range(req.body ?? {}), req.body?.options)))
+  app.post('/api/scan', wrap(() => scanAllDevices(db)))
   app.get('/api/devices/:name/baseline', wrap(req => {
     const b = repo.getBaseline(db, req.params.name)
     if (!b) { const e = new Error('No baseline yet.'); e.status = 404; throw e }
@@ -45,6 +49,11 @@ export function createApp(db) {
   app.get('/api/alerts', wrap(req => repo.listAlerts(db, { device: req.query.device, includeDismissed: req.query.includeDismissed === 'true' })))
   app.get('/api/alerts/unread-count', wrap(() => ({ count: repo.unreadAlertCount(db) })))
   app.patch('/api/alerts/:id', wrap(req => ({ updated: repo.updateAlert(db, req.params.id, req.body) })))
+  // Plain-language explanation of one alert from the local AI. Cached on the alert; { "refresh": true } asks again.
+  app.post('/api/alerts/:id/explain', async (req, res) => {
+    try { res.json(await explainAlert(db, req.params.id, { refresh: req.body?.refresh === true, chat })) }
+    catch (err) { res.status(err.status || 500).json({ error: err.message }) }
+  })
 
   // appliances
   const notFound = () => Object.assign(new Error('Appliance not found.'), { status: 404 })
@@ -61,6 +70,11 @@ export function createApp(db) {
     if (problem) throw new Error(problem)
     return repo.addMeterReading(db, reading)
   }))
+  // Reads the kWh value from a meter photo with the local vision model. Nothing is saved: the person confirms first.
+  app.post('/api/meter-readings/read-photo', async (req, res) => {
+    try { res.json(await readMeterPhoto(req.body?.image, { chat })) }
+    catch (err) { res.status(err.status || 500).json({ error: err.message }) }
+  })
   app.delete('/api/meter-readings/:id', wrap(req => ({ deleted: repo.deleteMeterReading(db, req.params.id) })))
 
   // settings
