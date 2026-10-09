@@ -32,6 +32,6 @@ test('detects stuck-off flatline', () => {
   assert.ok(detect(data, baseline).events.some(e => e.type === 'sustained-low'))
 })
 
-test('baseline is JSON-serializable (ready for IndexedDB)', () => {
+test('baseline is JSON-serializable', () => {
   assert.deepEqual(JSON.parse(JSON.stringify(baseline)), baseline)
 })
