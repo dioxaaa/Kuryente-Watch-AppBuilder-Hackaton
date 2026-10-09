@@ -1,6 +1,21 @@
 import { Bell, Menu, Search } from 'lucide-react'
 
 export function AppHeader({ title, unreadCount, onMenu, onAlerts, onProfile, onSearch, backendConnected, userName, networkOnline }) {
+import { useEffect, useState } from 'react'
+import { ThemeToggle } from './theme-toggle.jsx'
+import { initialsOf } from '../utils/energy-utils'
+
+export function AppHeader({ household, title, unreadCount, onMenu, onAlerts, onProfile }) {
+  const [online, setOnline] = useState(navigator.onLine)
+  useEffect(() => {
+    const updateStatus = () => setOnline(navigator.onLine)
+    window.addEventListener('online', updateStatus)
+    window.addEventListener('offline', updateStatus)
+    return () => {
+      window.removeEventListener('online', updateStatus)
+      window.removeEventListener('offline', updateStatus)
+    }
+  }, [])
   return (
     <header className="topbar">
       <div className="topbar-left">
@@ -10,11 +25,15 @@ export function AppHeader({ title, unreadCount, onMenu, onAlerts, onProfile, onS
       <div className="topbar-actions">
         <span className={`demo-mode ${!backendConnected ? 'connection-offline' : ''}`} title={backendConnected ? (networkOnline ? 'SQLite local server connected' : 'Internet disconnected; local SQLite server remains connected') : 'Local API unavailable'}><span /> {backendConnected ? (networkOnline ? 'SQLite ready' : 'Offline · local ready') : 'Local API unavailable'}</span>
         <button className="icon-button search-button" aria-label="Search appliances" title="Search appliances" onClick={onSearch}><Search size={19} /></button>
+        <span className={`demo-mode ${online ? '' : 'connection-offline'}`} title="Internet connection status. The app saves to the local server on this computer, so it works without internet."><span /> {online ? 'Online' : 'Offline'}</span>
+        <ThemeToggle />
+        <button className="icon-button search-button" aria-label="Search (not available yet)" title="Search is not available yet"><Search size={19} /></button>
         <button className="icon-button notification-button" aria-label={`${unreadCount} unread alerts`} onClick={onAlerts}>
           <Bell size={19} />{unreadCount > 0 && <span className="notification-dot" />}
         </button>
         <button className="profile-button" aria-label="Open settings" onClick={onProfile}>
           <span className="avatar">{userName.split(/\s+/).map(part => part[0]).slice(0, 2).join('').toUpperCase()}</span><span className="profile-name">{userName}</span>
+          <span className="avatar">{initialsOf(household)}</span><span className="profile-name">{household || 'My household'}</span>
         </button>
       </div>
     </header>

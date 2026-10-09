@@ -1,4 +1,5 @@
 const MIN_SAMPLES_PER_BUCKET = 12
+export const DEFAULT_Z_THRESHOLD = 3.5 // shared with the chart so the drawn normal band matches what the detector flags
 
 export const median = arr => {
   if (!arr.length) return NaN
@@ -61,7 +62,7 @@ export function learnBaseline(readings, { windowMin = 60 } = {}) {
   }
 }
 
-export function detect(readings, baseline, { zThreshold = 3.5, minSustainedMin = 30, spikeFactor = 1.5 } = {}) {
+export function detect(readings, baseline, { zThreshold = DEFAULT_Z_THRESHOLD, minSustainedMin = 30, spikeFactor = 1.5 } = {}) {
   const { intervalMin } = baseline
   const window = Math.max(1, Math.round(baseline.windowMin / intervalMin))
   const smooth = rollingMean(readings.map(r => r.watts), window)

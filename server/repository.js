@@ -1,4 +1,5 @@
 // All SQL lives here. Functions take the db as the first argument.
+import { randomUUID } from 'node:crypto'
 const now = () => new Date().toISOString()
 
 // ---------- devices ----------
@@ -29,6 +30,7 @@ export function getReadings(db, device, { from, to, limit } = {}) {
     WHERE device = ? AND timestamp >= ? AND timestamp <= ? ORDER BY timestamp LIMIT ?`)
     .all(device, from ?? '', to ?? '\uffff', limit ?? -1)
 }
+export const latestReadingTime = (db, device) => db.prepare('SELECT MAX(timestamp) t FROM readings WHERE device = ?').get(device)?.t ?? null
 export const countReadings = (db, device) => db.prepare('SELECT COUNT(*) n FROM readings WHERE device = ?').get(device).n
 
 // ---------- baselines ----------
@@ -46,7 +48,7 @@ export const getBaseline = (db, device) => {
 // ---------- alerts ----------
 export const alertIdFor = (device, event) => `${device}|${event.type}|${event.start}`
 
-const rowToAlert = r => ({ ...JSON.parse(r.data), id: r.id, device: r.device, createdAt: r.created_at, read: !!r.read, dismissed: !!r.dismissed })
+const rowToAlert = r => ({ ...JSON.parse(r.data), id: r.id, device: r.device, createdAt: r.created_at, read: !!r.read, dismissed: !!r.dismissed, aiExplanation: r.ai_explanation ?? null, aiModel: r.ai_model ?? null })
 
 // Saves detector events as alerts. Re-saving the same event keeps its read/dismissed state.
 // Returns how many were NEW.
@@ -54,12 +56,16 @@ export function saveAlerts(db, device, events) {
   ensureDevice(db, device)
   const exists = db.prepare('SELECT 1 FROM alerts WHERE id = ?')
   const insert = db.prepare('INSERT INTO alerts (id, device, type, severity, start, data, created_at) VALUES (?,?,?,?,?,?,?)')
-  const update = db.prepare('UPDATE alerts SET severity=?, data=? WHERE id=?')
+  // A re-scan can change an event (for example it ran longer), so an AI explanation is only kept when the event is unchanged.
+  const update = db.prepare(`UPDATE alerts SET severity=?,
+    ai_explanation = CASE WHEN data = ? THEN ai_explanation ELSE NULL END,
+    ai_model = CASE WHEN data = ? THEN ai_model ELSE NULL END,
+    data=? WHERE id=?`)
   return db.transaction(evs => {
     let added = 0
     for (const e of evs) {
       const id = alertIdFor(device, e)
-      if (exists.get(id)) update.run(e.severity ?? null, JSON.stringify(e), id)
+      if (exists.get(id)) { const json = JSON.stringify(e); update.run(e.severity ?? null, json, json, json, id) }
       else { insert.run(id, device, e.type, e.severity ?? null, e.start, JSON.stringify(e), now()); added++ }
     }
     return added
@@ -70,6 +76,12 @@ export function listAlerts(db, { device, includeDismissed = false } = {}) {
     .all(device ?? null, device ?? null, includeDismissed ? 1 : 0)
   return rows.map(rowToAlert)
 }
+export const getAlert = (db, id) => {
+  const row = db.prepare('SELECT * FROM alerts WHERE id = ?').get(id)
+  return row ? rowToAlert(row) : undefined
+}
+export const saveAlertExplanation = (db, id, text, model) =>
+  db.prepare('UPDATE alerts SET ai_explanation = ?, ai_model = ? WHERE id = ?').run(text, model ?? null, id).changes > 0
 export function updateAlert(db, id, { read, dismissed }) {
   const sets = [], args = []
   if (read !== undefined) {
@@ -81,6 +93,42 @@ export function updateAlert(db, id, { read, dismissed }) {
   return db.prepare(`UPDATE alerts SET ${sets.join(', ')} WHERE id = ?`).run(...args, id).changes > 0
 }
 export const unreadAlertCount = db => db.prepare('SELECT COUNT(*) n FROM alerts WHERE read = 0 AND dismissed = 0').get().n
+
+// ---------- appliances ----------
+const rowToAppliance = r => ({
+  id: r.id, name: r.name, category: r.category, watts: r.watts, hours: r.hours, pattern: r.pattern,
+  brand: r.brand ?? '', model: r.model ?? '', sample: !!r.sample, createdAt: r.created_at, updatedAt: r.updated_at,
+})
+export const getAppliance = (db, id) => {
+  const row = db.prepare('SELECT * FROM appliances WHERE id = ?').get(id)
+  return row ? rowToAppliance(row) : undefined
+}
+export const listAppliances = db => db.prepare('SELECT * FROM appliances ORDER BY created_at, rowid').all().map(rowToAppliance)
+export function addAppliance(db, a, { sample = false } = {}) {
+  const id = randomUUID()
+  db.prepare(`INSERT INTO appliances (id, name, category, watts, hours, pattern, brand, model, sample, created_at, updated_at)
+    VALUES (?,?,?,?,?,?,?,?,?,?,?)`).run(id, a.name, a.category, a.watts, a.hours, a.pattern, a.brand || null, a.model || null, sample ? 1 : 0, now(), now())
+  return getAppliance(db, id)
+}
+// Editing a built-in example makes it the user's own, so it is no longer labeled as a sample.
+export function updateAppliance(db, id, a) {
+  const changed = db.prepare(`UPDATE appliances SET name=?, category=?, watts=?, hours=?, pattern=?, brand=?, model=?, sample=0, updated_at=? WHERE id=?`)
+    .run(a.name, a.category, a.watts, a.hours, a.pattern, a.brand || null, a.model || null, now(), id).changes
+  return changed ? getAppliance(db, id) : undefined
+}
+export const deleteAppliance = (db, id) => db.prepare('DELETE FROM appliances WHERE id = ?').run(id).changes > 0
+
+// ---------- household meter readings (what the user types in from the meter) ----------
+const rowToMeterReading = r => ({ id: r.id, kwh: r.kwh, date: r.recorded_at, source: r.source, reset: !!r.is_reset })
+export const listMeterReadings = db =>
+  db.prepare('SELECT * FROM meter_readings ORDER BY recorded_at, rowid').all().map(rowToMeterReading)
+export function addMeterReading(db, { id = randomUUID(), kwh, date, source = 'Manual entry', reset = false }) {
+  // INSERT OR IGNORE keeps a retried one-time import from creating duplicates
+  db.prepare('INSERT OR IGNORE INTO meter_readings (id, kwh, recorded_at, source, created_at, is_reset) VALUES (?,?,?,?,?,?)')
+    .run(id, kwh, date, source, now(), reset ? 1 : 0)
+  return rowToMeterReading(db.prepare('SELECT * FROM meter_readings WHERE id = ?').get(id))
+}
+export const deleteMeterReading = (db, id) => db.prepare('DELETE FROM meter_readings WHERE id = ?').run(id).changes > 0
 
 // ---------- settings ----------
 export const setSetting = (db, key, value) =>
@@ -97,4 +145,5 @@ export function clearAllData(db) {
       db.exec(`DELETE FROM ${table}`)
     }
   })()
+  db.transaction(() => { for (const t of ['alerts', 'baselines', 'readings', 'devices', 'appliances', 'meter_readings', 'settings']) db.exec(`DELETE FROM ${t}`) })()
 }

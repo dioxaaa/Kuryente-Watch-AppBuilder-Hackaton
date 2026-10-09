@@ -23,6 +23,12 @@ export const navItems = [
 ]
 
 export function AppSidebar({ activePage, onNavigate, mobileOpen, onClose, alertCount, userName, householdName }) {
+  { id: 'admin', label: 'About this prototype', icon: ShieldCheck },
+]
+
+import { initialsOf } from '../utils/energy-utils'
+
+export function AppSidebar({ household, activePage, onNavigate, mobileOpen, onClose, alertCount }) {
   return (
     <>
       {mobileOpen && <button className="drawer-scrim" aria-label="Close navigation menu" onClick={onClose} />}
@@ -35,6 +41,7 @@ export function AppSidebar({ activePage, onNavigate, mobileOpen, onClose, alertC
         <div className="household-switch">
           <span className="household-icon"><House size={16} /></span>
           <span><small>HOUSEHOLD</small>          <strong>{householdName}</strong></span>
+          <span><small>HOUSEHOLD</small><strong>{household || 'My household'}</strong></span>
           <ChevronRight size={15} className="muted-icon" />
         </div>
         <p className="nav-caption">WORKSPACE</p>
@@ -56,6 +63,11 @@ export function AppSidebar({ activePage, onNavigate, mobileOpen, onClose, alertC
           <button className="profile-mini" onClick={() => onNavigate('settings')}>
             <span className="avatar avatar-small">{userName.split(/\s+/).map(part => part[0]).slice(0, 2).join('').toUpperCase()}</span>
             <span><strong>{userName}</strong><small>Local profile</small></span>
+            <p>Everything is saved in a database on this computer, not online.</p>
+          </div>
+          <button className="profile-mini" onClick={() => onNavigate('settings')}>
+            <span className="avatar avatar-small">{initialsOf(household)}</span>
+            <span><strong>{household || 'My household'}</strong><small>Household</small></span>
             <ChevronRight size={16} className="muted-icon" />
           </button>
         </div>

@@ -35,3 +35,27 @@ test('detects stuck-off flatline', () => {
 test('baseline is JSON-serializable', () => {
   assert.deepEqual(JSON.parse(JSON.stringify(baseline)), baseline)
 })
+test('simulated timestamps are the same wall-clock text on every computer, whatever its time zone', () => {
+  const original = process.env.TZ
+  try {
+    for (const tz of ['UTC', 'Asia/Manila', 'America/New_York']) {
+      process.env.TZ = tz
+      const r = generateFridgeReadings({ days: 1, start: '2026-10-08T00:00:00', seed: 99 })
+      assert.equal(r[0].timestamp, '2026-10-08T00:00:00', tz)
+      assert.equal(r[r.length - 1].timestamp, '2026-10-08T23:55:00', tz)
+      assert.equal(r.length, 288, tz)
+    }
+  } finally {
+    if (original === undefined) delete process.env.TZ
+    else process.env.TZ = original
+  }
+})
+
+test('the fridge works harder in the afternoon than in the early morning (cycle follows the clock on the label)', () => {
+  const day = generateFridgeReadings({ days: 7, seed: 42 })
+  const avg = hours => {
+    const rows = day.filter(r => hours.includes(Number(r.timestamp.slice(11, 13))))
+    return rows.reduce((s, r) => s + r.watts, 0) / rows.length
+  }
+  assert.ok(avg([14, 15, 16]) > avg([2, 3, 4]) * 1.2, `${avg([14, 15, 16])} vs ${avg([2, 3, 4])}`)
+})
