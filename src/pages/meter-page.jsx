@@ -29,6 +29,7 @@ export function MeterPage({ readings, rate, onSave, onToast }) {
     ...item,
     kwh: item.kwh ?? item.readingKwh,
     date: item.date ?? item.recordedAt,
+    reset: item.reset ?? item.isReset,
   }))
   const previous = recordedAt ? neighborsAt(normalizedReadings, recordedAt).before : null
   const delta = value !== '' && previous && !reset ? Number(value) - previous.kwh : null
@@ -104,6 +105,7 @@ export function MeterPage({ readings, rate, onSave, onToast }) {
         readingKwh: amount,
         recordedAt: new Date(recordedAt).toISOString(),
         notes: [notes.trim(), ocr && amount === ocr.kwh ? `Photo assisted · ${ocr.model}` : ''].filter(Boolean).join(' · '),
+        reset,
       })
       if (saved) {
         setValue('')

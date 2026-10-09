@@ -1,5 +1,7 @@
 // On-device meter and appliance label photo reading with Tesseract (WebAssembly), used when the KuryenteWatch server or its vision model is unavailable.
 // The worker, OCR engine and English language data are bundled with the app (see vite.config.ts), so this works with no internet.
+import { hasLabelDetails, parseApplianceLabel } from './label-parse.js'
+
 export const OCR_MODEL = 'On-device OCR (Tesseract)'
 import { parseLabelTexts } from './appliance-label.js'
 
@@ -25,6 +27,29 @@ const simdSupported = () => {
   catch { return false }
 }
 
+// Tesseract page segmentation modes: automatic, one uniform block, one text line.
+const [PSM_AUTO, PSM_SINGLE_BLOCK, PSM_SINGLE_LINE] = ['3', '6', '7']
+
+// Same-origin URLs of the OCR worker, the engine this device can run, and the English language data.
+async function ocrAssets() {
+  const [{ default: workerPath }, { default: simdCore }, { default: plainCore }] = await Promise.all([
+    import('tesseract.js/dist/worker.min.js?url'),
+    import('tesseract.js-core/tesseract-core-simd-lstm.wasm.js?url'),
+    import('tesseract.js-core/tesseract-core-lstm.wasm.js?url'),
+  ])
+  return {
+    workerPath: new URL(workerPath, location.href).href,
+    corePath: new URL(simdSupported() ? simdCore : plainCore, location.href).href,
+    langPath: new URL(`${import.meta.env.BASE_URL}tessdata`, location.href).href,
+  }
+}
+
+// Downloads the OCR files in the background so the service worker caches them and photos can be read offline later.
+export async function warmOfflineOcr() {
+  const { workerPath, corePath, langPath } = await ocrAssets()
+  await Promise.all([workerPath, corePath, `${langPath}/eng.traineddata.gz`].map(url => fetch(url).then(response => response.arrayBuffer())))
+}
+
 let workerPromise = null
 let queue = Promise.resolve()
 // Meter and label reading share one worker with different settings, so jobs run one at a time.
@@ -35,19 +60,10 @@ function withWorker(job) {
 }
 async function getWorker() {
   workerPromise ??= (async () => {
-    const [{ createWorker, PSM }, { default: workerPath }, { default: simdCore }, { default: plainCore }] = await Promise.all([
-      import('tesseract.js'),
-      import('tesseract.js/dist/worker.min.js?url'),
-      import('tesseract.js-core/tesseract-core-simd-lstm.wasm.js?url'),
-      import('tesseract.js-core/tesseract-core-lstm.wasm.js?url'),
-    ])
-    const worker = await createWorker('eng', 1, {
-      workerPath: new URL(workerPath, location.href).href,
-      corePath: new URL(simdSupported() ? simdCore : plainCore, location.href).href,
-      langPath: new URL(`${import.meta.env.BASE_URL}tessdata`, location.href).href,
-      workerBlobURL: false,
-    })
-    return { worker, PSM }
+    const [{ createWorker }, assets] = await Promise.all([import('tesseract.js'), ocrAssets()])
+    const worker = await createWorker('eng', 1, { ...assets, workerBlobURL: false })
+    await worker.setParameters({ tessedit_char_whitelist: '0123456789.' })
+    return worker
   })()
   try {
     return await workerPromise
@@ -62,10 +78,13 @@ export async function readMeterPhotoOnDevice(image) {
   if (typeof image !== 'string' || !image.startsWith('data:image/')) throw Object.assign(new Error('Choose a photo first.'), { status: 400 })
   let text
   try {
-    text = await withWorker(async ({ worker, PSM }) => {
-      await worker.setParameters({ tessedit_char_whitelist: '0123456789.', tessedit_pageseg_mode: PSM.AUTO })
-      return (await worker.recognize(image)).data.text
-    })
+    const worker = await getWorker()
+    // Automatic layout often misses a single large meter display, so retry as one block and as one line.
+    for (const mode of [PSM_AUTO, PSM_SINGLE_BLOCK, PSM_SINGLE_LINE]) {
+      await worker.setParameters({ tessedit_pageseg_mode: mode })
+      text = (await worker.recognize(image)).data.text
+      if (extractMeterReading(text)) break
+    }
   } catch {
     throw Object.assign(new Error('This device could not read the photo. Please type the reading manually.'), { status: 503 })
   }
@@ -74,71 +93,42 @@ export async function readMeterPhotoOnDevice(image) {
   return { ...found, model: OCR_MODEL }
 }
 
-export const NO_LABEL_MESSAGE = 'Could not read the rated watts or model from this label. Try a closer, sharper photo, or type the details manually.'
 
-const loadImage = src => new Promise((resolve, reject) => {
-  const image = new Image()
-  image.onload = () => resolve(image)
-  image.onerror = () => reject(new Error('Could not open the photo.'))
-  image.src = src
-})
-
-// Labels are often photographed sideways, and printed or embossed text is low contrast,
-// so the photo is read upright and turned both ways, in grayscale with the contrast stretched.
-async function labelVariants(dataUrl) {
-  const image = await loadImage(dataUrl)
-  return [0, 90, 270].map(degrees => {
-    const turned = degrees !== 0
-    const canvas = document.createElement('canvas')
-    canvas.width = turned ? image.height : image.width
-    canvas.height = turned ? image.width : image.height
-    const ctx = canvas.getContext('2d', { willReadFrequently: true })
-    ctx.translate(canvas.width / 2, canvas.height / 2)
-    ctx.rotate((degrees * Math.PI) / 180)
-    ctx.drawImage(image, -image.width / 2, -image.height / 2)
-    const pixels = ctx.getImageData(0, 0, canvas.width, canvas.height)
-    stretchContrast(pixels.data)
-    ctx.putImageData(pixels, 0, 0)
-    return canvas.toDataURL('image/jpeg', 0.92)
-  })
-}
-
-// Grayscale, then map the 2nd..98th brightness percentiles to black..white.
-export function stretchContrast(data) {
-  const histogram = new Uint32Array(256)
-  for (let i = 0; i < data.length; i += 4) {
-    const gray = Math.round(0.299 * data[i] + 0.587 * data[i + 1] + 0.114 * data[i + 2])
-    data[i] = data[i + 1] = data[i + 2] = gray
-    histogram[gray]++
-  }
-  const total = data.length / 4
-  let low = 0, high = 255, seen = 0
-  while (low < 255 && (seen += histogram[low]) < total * 0.02) low++
-  seen = 0
-  while (high > 0 && (seen += histogram[high]) < total * 0.02) high--
-  if (high <= low) return
-  const scale = 255 / (high - low)
-  for (let i = 0; i < data.length; i += 4) data[i] = data[i + 1] = data[i + 2] = Math.max(0, Math.min(255, (data[i] - low) * scale))
-}
-
-// `image` is a JPEG data URL. Returns { name, category, brand, model, watts, engine } like POST /api/appliances/read-label.
-export async function readLabelPhotoOnDevice(image) {
-  if (typeof image !== 'string' || !image.startsWith('data:image/')) throw Object.assign(new Error('Choose a photo first.'), { status: 400 })
-  let texts
+// Appliance rating labels contain letters (INPUT, 220V, 60W), so they use their own worker without the digits-only filter.
+// Sparse-text mode (11) finds small printed fields that automatic layout skips.
+let labelWorkerPromise = null
+async function getLabelWorker() {
+  labelWorkerPromise ??= (async () => {
+    const [{ createWorker }, assets] = await Promise.all([import('tesseract.js'), ocrAssets()])
+    return createWorker('eng', 1, { ...assets, workerBlobURL: false })
+  })()
   try {
-    const variants = await labelVariants(image)
-    texts = await withWorker(async ({ worker, PSM }) => {
-      const found = []
-      for (const mode of [PSM.SINGLE_BLOCK, PSM.SPARSE_TEXT]) {
-        await worker.setParameters({ tessedit_char_whitelist: '', tessedit_pageseg_mode: mode })
-        for (const variant of variants) found.push((await worker.recognize(variant)).data.text)
-      }
-      return found
-    })
-  } catch {
-    throw Object.assign(new Error('This device could not read the photo. Please type the details manually.'), { status: 503 })
+    return await labelWorkerPromise
+  } catch (error) {
+    labelWorkerPromise = null
+    throw error
   }
-  const found = parseLabelTexts(texts)
-  if (!found) throw Object.assign(new Error(NO_LABEL_MESSAGE), { status: 422 })
-  return { ...found, engine: OCR_MODEL }
+}
+
+export const NO_LABEL_MESSAGE = 'Could not read any specifications from this photo. Move closer, avoid glare, or type the details in.'
+
+// `image` is a JPEG data URL. Returns the suggested specifications { watts, source, volts, amps, brand, model, otherWatts, text, engine }.
+export async function readApplianceLabelOnDevice(image) {
+  if (typeof image !== 'string' || !image.startsWith('data:image/')) throw Object.assign(new Error('Choose a photo first.'), { status: 400 })
+  let best = null
+  let bestText = ''
+  try {
+    const worker = await getLabelWorker()
+    for (const mode of [PSM_AUTO, '11']) {
+      await worker.setParameters({ tessedit_pageseg_mode: mode })
+      const text = (await worker.recognize(image)).data.text
+      const parsed = parseApplianceLabel(text)
+      if (!best || (parsed.watts && !best.watts) || (!best.watts && hasLabelDetails(parsed) && !hasLabelDetails(best))) { best = parsed; bestText = text }
+      if (best.watts) break
+    }
+  } catch {
+    throw Object.assign(new Error('This device could not read the photo. Please type the details in.'), { status: 503 })
+  }
+  if (!hasLabelDetails(best)) throw Object.assign(new Error(NO_LABEL_MESSAGE), { status: 422 })
+  return { ...best, text: bestText.replace(/\s+/g, ' ').trim().slice(0, 400), engine: OCR_MODEL }
 }

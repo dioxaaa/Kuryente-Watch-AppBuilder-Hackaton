@@ -67,8 +67,15 @@ export default defineConfig(({ mode }) => ({
       },
       workbox: {
         globPatterns: [mode === 'web' ? '**/*.{js,css,html,svg,png,ico,woff2,webmanifest,wasm,gz}' : '**/*.{js,css,html,svg,png,ico,woff2,webmanifest,gz}'],
-        // The OCR engine (~4 MB) and language data (~3 MB) are precached so meter photos can be read offline.
+        // The OCR engine (~4 MB) and language data (~3 MB) stay out of the precache so the app is offline-ready quickly;
+        // they are cached on first use, or in the background by warmOfflineOcr() (src/utils/offline-ocr.js).
+        globIgnores: ['**/tesseract-core-*', '**/tessdata/**'],
         maximumFileSizeToCacheInBytes: 6 * 1024 * 1024,
+        runtimeCaching: [{
+          urlPattern: ({ url }) => /tesseract-core-|\/tessdata\//.test(url.pathname),
+          handler: 'CacheFirst',
+          options: { cacheName: 'kw-ocr', cacheableResponse: { statuses: [200] } },
+        }],
         navigateFallback: '/index.html',
         navigateFallbackDenylist: [/^\/api\//],
       },

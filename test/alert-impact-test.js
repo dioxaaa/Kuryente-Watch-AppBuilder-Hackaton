@@ -49,7 +49,7 @@ test('totals add up only the measured extra and name the biggest cause', () => {
 
 test('money and energy text keep centavos for small amounts', () => {
   assert.equal(pesoText(1.2), '₱1.20')
-  assert.equal(pesoText(12.4), '₱12')
+  assert.equal(pesoText(12.4), '₱12.40')
   assert.equal(kwhText(0.096), '0.10 kWh')
   assert.equal(kwhText(2.34), '2.3 kWh')
 })
@@ -64,6 +64,19 @@ test('meter usage compares the latest stretch with the ones before it', () => {
   assert.equal(u.recentDailyKwh, 8.4)
   assert.equal(u.earlierDailyKwh, 6.1)
   assert.equal(usageSummary(readings.slice(0, 1)), null)
+})
+
+test('meter usage trends start over after a meter reset', () => {
+  const sequence = [
+    { kwh: 100, date: '2026-10-01T00:00:00Z' },
+    { kwh: 120, date: '2026-10-02T00:00:00Z' },
+    { kwh: 5, date: '2026-10-03T00:00:00Z', isReset: true },
+    { kwh: 9, date: '2026-10-04T00:00:00Z' },
+  ]
+  assert.equal(usageSummary(sequence).recentDailyKwh, 4)
+  assert.equal(usageSummary(sequence).earlierDailyKwh, null)
+  assert.equal(usageSummary(sequence.slice(0, 3)), null)
+  assert.equal(buildAssistantContext({ readings: sequence.slice(0, 3) }).previousKwh, undefined)
 })
 
 test('bill facts come from real data and say so when data is missing', () => {

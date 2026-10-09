@@ -49,7 +49,10 @@ async function seedAppliances() {
 
 async function listReadings() {
   const rows = await db.readings.orderBy('recordedAt').toArray()
-  return rows.map((row, i) => ({ ...row, usageKwh: i ? row.readingKwh - rows[i - 1].readingKwh : null }))
+  return rows.map((row, i) => ({
+    ...row,
+    usageKwh: row.reset || !i ? null : row.readingKwh - rows[i - 1].readingKwh,
+  }))
 }
 
 async function listAppliances() {
@@ -125,11 +128,12 @@ export async function localApi(path, { method = 'GET', body } = {}) {
       const rows = await listReadings()
       const before = rows.filter(r => r.recordedAt < recordedAt).at(-1)
       const after = rows.find(r => r.recordedAt > recordedAt)
-      if (before && readingKwh < before.readingKwh) fail(`Reading must be at least ${before.readingKwh} kWh, the preceding meter value.`)
-      if (after && readingKwh > after.readingKwh) fail(`Reading must not exceed ${after.readingKwh} kWh, the next meter value.`)
-      const reading = { id: newId(), readingKwh, recordedAt, notes: String(body.notes ?? '').trim().slice(0, 500), createdAt: now() }
+      const reset = body.reset === true
+      if (!reset && before && readingKwh < before.readingKwh) fail(`Reading must be at least ${before.readingKwh} kWh, the preceding meter value.`)
+      if (!reset && after && !after.reset && readingKwh > after.readingKwh) fail(`Reading must not exceed ${after.readingKwh} kWh, the next meter value.`)
+      const reading = { id: newId(), readingKwh, recordedAt, notes: String(body.notes ?? '').trim().slice(0, 500), reset, createdAt: now() }
       await db.readings.put(reading)
-      return { reading: { ...reading, usageKwh: before ? readingKwh - before.readingKwh : null } }
+      return { reading: { ...reading, usageKwh: reset || !before ? null : readingKwh - before.readingKwh } }
     }
   }
   if (route === '/appliances') {
@@ -184,11 +188,11 @@ export async function builtInChat(body = {}, load) {
   ])
   const context = buildAssistantContext({
     readings,
-    appliances: appliances.map(a => ({ ...a, watts: a.ratedWatts ?? a.watts, hours: a.hoursPerDay ?? a.hours })),
+    appliances: appliances.map(a => ({ ...a, watts: a.ratedWatts ?? a.watts, hours: a.hoursPerDay ?? a.hours, pattern: a.usagePattern ?? a.pattern })),
     alerts,
     rate: ratePerKwh,
   })
-  return { reply: offlineAnswer(message, context), model: BUILT_IN_MODEL }
+  return { reply: offlineAnswer(message, context, body.history), model: BUILT_IN_MODEL }
 }
 
 // Tesseract is loaded only when a photo is read, so it does not slow down opening the app.
@@ -213,7 +217,7 @@ export async function readLabel(body = {}) {
 export function offlineReply(body = {}) {
   const question = String(body.question ?? '').trim()
   if (!question) fail('Please type a question.')
-  return { reply: offlineAnswer(question, body.context ?? {}), model: BUILT_IN_MODEL }
+  return { reply: offlineAnswer(question, body.context ?? {}, body.history), model: BUILT_IN_MODEL }
 }
 
 export function offlineRecommendation(body = {}, rate) {

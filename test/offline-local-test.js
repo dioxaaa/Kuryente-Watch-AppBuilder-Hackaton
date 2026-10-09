@@ -2,6 +2,7 @@ import 'fake-indexeddb/auto'
 import test from 'node:test'
 import assert from 'node:assert/strict'
 import { extractMeterReading } from '../src/utils/offline-ocr.js'
+import { estimateDailyKwh, formatPeso } from '../src/utils/energy-utils.js'
 import { localApi } from '../src/local-api.js'
 import { api, isLocalMode, recheckServer } from '../src/api.js'
 
@@ -15,6 +16,13 @@ test('meter OCR text: the longest digit run wins and keeps its decimal part', ()
   assert.equal(extractMeterReading(''), null)
   assert.equal(extractMeterReading('7 . .'), null)
   assert.equal(extractMeterReading('0000'), null)
+})
+
+test('appliance estimates match watts × hours and retain centavo precision', () => {
+  const dailyKwh = estimateDailyKwh({ watts: 60, hours: 8 })
+  assert.equal(dailyKwh, 0.48)
+  assert.equal(Number((dailyKwh * 30).toFixed(2)), 14.4)
+  assert.equal(formatPeso(dailyKwh * 30 * 12), '₱172.80')
 })
 
 test('local assistant status and chat answer from IndexedDB records', async () => {
@@ -78,4 +86,20 @@ test('server mode: no Ollama models means the built-in assistant answers from se
   assert.equal(status.error, 'Ollama is offline.')
   const { reply } = await api.post('/assistant/chat', { message: 'Which appliance uses the most?', model: 'Built-in assistant' })
   assert.match(reply, /Server fridge is the biggest/)
+})
+
+test('local meter reset starts a new cumulative sequence without a false usage delta', async () => {
+  await localApi('/readings', { method: 'POST', body: { readingKwh: 1200, recordedAt: '2026-10-12T00:00:00Z' } })
+  const reset = await localApi('/readings', { method: 'POST', body: { readingKwh: 10, recordedAt: '2026-10-13T00:00:00Z', reset: true } })
+  assert.equal(reset.reading.usageKwh, null)
+  assert.equal(reset.reading.reset, true)
+  const next = await localApi('/readings', { method: 'POST', body: { readingKwh: 15, recordedAt: '2026-10-14T00:00:00Z' } })
+  assert.equal(next.reading.usageKwh, 5)
+  await assert.rejects(
+    localApi('/readings', { method: 'POST', body: { readingKwh: 8, recordedAt: '2026-10-15T00:00:00Z' } }),
+    /preceding meter value/,
+  )
+  const rows = await localApi('/readings')
+  assert.equal(rows.at(-2).usageKwh, null)
+  assert.equal(rows.at(-1).usageKwh, 5)
 })

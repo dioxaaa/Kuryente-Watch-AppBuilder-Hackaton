@@ -316,6 +316,7 @@ export function createApp(db, {
       readingKwh: positiveNumber(body.readingKwh, 'Meter reading', 1000000000),
       recordedAt: validateRecordedAt(body.recordedAt),
       notes: body.notes === undefined ? '' : typeof body.notes === 'string' && body.notes.length <= 500 ? body.notes.trim() : fail('Notes must be 500 characters or fewer.'),
+      reset: body.reset === true,
     })
     res.status(201)
     return { reading, newAlerts: scanMeterReadings(db).newAlerts }

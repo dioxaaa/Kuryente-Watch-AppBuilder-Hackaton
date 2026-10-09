@@ -1,23 +1,22 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
-import { AirVent, Check, Fan, Lightbulb, Pencil, Plus, Refrigerator, ScanLine, Search, Tv, WashingMachine, X, Zap, Trash2 } from 'lucide-react'
-import { api } from '../api'
+import { AirVent, Fan, Lightbulb, Pencil, Plus, Refrigerator, Search, Tv, WashingMachine, X, Zap, Trash2, Gauge, ScanLine, Check, Info } from 'lucide-react'
 import { ConfirmModal } from '../components/confirm-modal'
 import { EmptyState } from '../components/empty-state'
 import { PageTitle } from '../components/page-title'
-import { formatPeso } from '../utils/energy-utils'
+import { applianceAverageDailyKwh, applianceMonthKwh, estimateDailyKwh, formatDate, formatPeso, meterDailyUse, usedDaysPer30 } from '../utils/energy-utils'
 import { photoToJpegDataUrl } from '../utils/image'
 
 const categories = ['All appliances', 'Refrigerator', 'Electric fan', 'Air conditioner', 'Rice cooker', 'Television', 'Washing machine', 'Other']
 const icons = { Refrigerator, 'Electric fan': Fan, 'Air conditioner': AirVent, 'Rice cooker': Zap, Television: Tv, 'Washing machine': WashingMachine, Other: Lightbulb }
 const emptyForm = { name: '', category: 'Refrigerator', watts: '', hours: '', pattern: 'Daily', brand: '', model: '' }
 
-function ApplianceModal({ appliance, onClose, onSave }) {
+function ApplianceModal({ appliance, onClose, onSave, rate }) {
   const [form, setForm] = useState(appliance ? { ...appliance } : emptyForm)
   const [error, setError] = useState('')
   const [photo, setPhoto] = useState('')
-  const [reading, setReading] = useState(false)
-  const [labelNote, setLabelNote] = useState('')
-  const [labelError, setLabelError] = useState('')
+  const [file, setFile] = useState(null)
+  const [scanning, setScanning] = useState(false)
+  const [scan, setScan] = useState(null)
   const inputRef = useRef(null)
   useEffect(() => () => { if (photo) URL.revokeObjectURL(photo) }, [photo])
 
@@ -36,31 +35,44 @@ function ApplianceModal({ appliance, onClose, onSave }) {
     if (file.size > 10 * 1024 * 1024) return setError('Choose an image smaller than 10 MB.')
     if (photo) URL.revokeObjectURL(photo)
     setPhoto(URL.createObjectURL(file))
-    readLabel(file)
+    setFile(file)
+    setScan(null)
+    setError('')
   }
-  // Fills the form from the label photo (local vision model, or on-device OCR without the server). Typed values are kept.
-  async function readLabel(file) {
-    setReading(true)
-    setLabelNote('')
-    setLabelError('')
+
+  function removePhoto() {
+    if (photo) URL.revokeObjectURL(photo)
+    setPhoto('')
+    setFile(null)
+    setScan(null)
+  }
+
+  // Reads the label on this device, fills the fields it found, and leaves everything editable.
+  async function readLabel() {
+    if (!file || scanning) return
+    setScanning(true)
+    setError('')
+    setScan(null)
     try {
-      const found = await api.post('/appliances/read-label', { image: await photoToJpegDataUrl(file) })
+      const { readApplianceLabelOnDevice } = await import('../utils/offline-ocr.js')
+      const found = await readApplianceLabelOnDevice(await photoToJpegDataUrl(file, 2000, 0.92))
       setForm(current => ({
         ...current,
-        name: current.name.trim() ? current.name : found.name,
-        category: current.name.trim() && found.category === 'Other' ? current.category : found.category,
-        watts: found.watts ? String(found.watts) : current.watts,
-        brand: found.brand || current.brand || '',
-        model: found.model || current.model || '',
+        watts: found.watts ?? current.watts,
+        brand: current.brand || found.brand || '',
+        model: current.model || found.model || '',
       }))
-      const parts = [found.watts && `${found.watts} W`, found.brand, found.model && `model ${found.model}`].filter(Boolean)
-      setLabelNote(`Filled in ${parts.join(', ')} from the label (${found.engine}). Check the details and add the hours used before saving.`)
+      setScan(found)
     } catch (failure) {
-      setLabelError(failure.message || 'Could not read this label. Please type the details manually.')
+      setError(failure.message || 'Could not read this label. Type the details in.')
     } finally {
-      setReading(false)
+      setScanning(false)
     }
   }
+
+  const previewDaily = Number(form.watts) > 0 && Number(form.hours) > 0 ? estimateDailyKwh(form) : null
+  const previewDays = usedDaysPer30(form.pattern)
+  const previewMonth = previewDaily !== null ? previewDaily * previewDays : null
   return (
     <div className="modal-backdrop" onMouseDown={event => { if (event.target === event.currentTarget) onClose() }}>
       <section className="confirm-modal appliance-modal" role="dialog" aria-modal="true" aria-labelledby="appliance-modal-title">
@@ -71,11 +83,23 @@ function ApplianceModal({ appliance, onClose, onSave }) {
           <div className="field-grid"><div className="field-group"><label htmlFor="appliance-category">Category</label><select id="appliance-category" name="category" value={form.category} onChange={change}>{categories.slice(1).map(category => <option key={category}>{category}</option>)}</select></div><div className="field-group"><label htmlFor="appliance-watts">Rated power <span className="required">*</span></label><div className="input-with-unit"><input id="appliance-watts" name="watts" type="number" min="1" max="100000" value={form.watts} onChange={change} placeholder="e.g. 150" /><span>W</span></div></div></div>
           <div className="field-grid"><div className="field-group"><label htmlFor="appliance-hours">Hours used per day <span className="required">*</span></label><div className="input-with-unit"><input id="appliance-hours" name="hours" type="number" min="0.1" max="24" step="0.1" value={form.hours} onChange={change} placeholder="e.g. 8" /><span>hrs</span></div></div><div className="field-group"><label htmlFor="appliance-pattern">Usage pattern</label><select id="appliance-pattern" name="pattern" value={form.pattern || 'Daily'} onChange={change}>{['Daily', 'Weekdays', 'Weekends', 'Occasional'].map(pattern => <option key={pattern}>{pattern}</option>)}</select></div></div>
           <div className="field-grid"><div className="field-group"><label htmlFor="appliance-brand">Brand <span className="optional">(optional)</span></label><input id="appliance-brand" name="brand" maxLength={100} value={form.brand || ''} onChange={change} placeholder="Brand name" /></div><div className="field-group"><label htmlFor="appliance-model">Model <span className="optional">(optional)</span></label><input id="appliance-model" name="model" maxLength={100} value={form.model || ''} onChange={change} placeholder="Model number" /></div></div>
-          <label className="field-label" htmlFor="appliance-label-photo">Rating label photo <span className="optional">(optional · fills in the details)</span></label>
-          {photo && <div className="label-photo-preview"><img src={photo} alt="Appliance rating label preview" /><button type="button" className="button button-secondary button-small" onClick={() => { URL.revokeObjectURL(photo); setPhoto(''); setLabelNote(''); setLabelError('') }}>Remove photo</button></div>}
-          <label className="mini-upload" htmlFor="appliance-label-photo"><input ref={inputRef} id="appliance-label-photo" type="file" accept="image/*" capture="environment" onChange={event => { choosePhoto(event.target.files?.[0]); event.target.value = '' }} /><span><Plus size={15} /> {photo ? 'Choose a different label photo' : 'Take or choose a label photo'}</span><small>{reading ? <><ScanLine size={13} /> Reading label…</> : 'Reads watts, brand and model'}</small></label>
-          {labelNote && <p className="photo-note"><Check size={14} /> {labelNote}</p>}
-          {labelError && <p className="form-error" role="alert">{labelError}</p>}
+          <label className="field-label" htmlFor="appliance-label-photo">Rating label photo <span className="optional">(optional · read on this device)</span></label>
+          {photo && <div className="label-photo-preview"><img src={photo} alt="Appliance rating label preview" /><button type="button" className="button button-secondary button-small" onClick={removePhoto}>Remove photo</button></div>}
+          <label className="mini-upload" htmlFor="appliance-label-photo"><input ref={inputRef} id="appliance-label-photo" type="file" accept="image/*" capture="environment" onChange={event => { choosePhoto(event.target.files?.[0]); event.target.value = '' }} /><span><Plus size={15} /> {photo ? 'Choose a different label photo' : 'Take or choose a label photo'}</span><small>Fields stay editable</small></label>
+          {photo && <button className="button button-secondary button-small" type="button" onClick={readLabel} disabled={scanning}><ScanLine size={15} /> {scanning ? 'Reading label…' : 'Read specifications from photo'}</button>}
+          {scan && (
+            <p className="photo-note"><Check size={14} /><span>
+              {scan.watts ? <>Suggested <strong>{scan.watts} W</strong> from the label. </> : <>No explicit wattage found; enter the rated watts manually{scan.amps ? ` (the label also shows ${scan.amps} A${scan.volts ? ` at ${scan.volts} V` : ''})` : ''}. </>}
+              {scan.otherWatts?.length ? `Other values seen: ${scan.otherWatts.join(', ')} W. ` : ''}
+              Check every field against your photo. A label shows the maximum rating, not real use.
+            </span></p>
+          )}
+          <div className="reading-preview appliance-preview">
+            <span>Per day of use</span><strong>{previewDaily !== null ? `${previewDaily.toFixed(2)} kWh` : '—'}</strong>
+            <span>Per 30 days</span><strong>{previewMonth !== null ? `${previewMonth.toFixed(1)} kWh` : '—'}</strong>
+            <span>Est. monthly cost</span><strong>{previewMonth !== null ? formatPeso(previewMonth * rate) : '—'}</strong>
+          </div>
+          <p className="muted-copy"><Info size={14} /> Estimate = watts × hours per day ÷ 1000, times the days it runs ({previewDays % 1 ? previewDays.toFixed(1) : previewDays} of 30 for “{form.pattern || 'Daily'}”), at ₱{Number(rate).toFixed(2)}/kWh. Enter the hours you actually use it.</p>
           {error && <p className="form-error" role="alert">{error}</p>}
           <div className="modal-actions"><button type="button" className="button button-secondary" onClick={onClose}>Cancel</button><button type="submit" className="button button-primary"><Plus size={15} /> {appliance ? 'Save changes' : 'Add appliance'}</button></div>
         </form>
@@ -84,13 +108,33 @@ function ApplianceModal({ appliance, onClose, onSave }) {
   )
 }
 
-export function AppliancesPage({ appliances, onAdd, onUpdate, onDelete, rate, onToast }) {
+function MeterComparison({ meter, listDaily, rate }) {
+  if (!meter) {
+    return <p className="meter-compare"><Gauge size={16} /><span>Save meter readings about a day apart to compare this estimate with what your meter actually records.</span></p>
+  }
+  const ratio = listDaily / meter.perDay
+  const verdict = ratio > 1.2
+    ? 'Your list is higher than the meter: refrigerators and aircons switch on and off, so they rarely use their full rated watts for all the hours entered.'
+    : ratio < 0.8
+      ? 'Your list is lower than the meter: the rest is likely appliances not listed yet, like lights, chargers or a water pump.'
+      : 'Your list and your meter roughly match.'
+  return (
+    <p className="meter-compare"><Gauge size={16} /><span>
+      <strong>Meter check:</strong> since {formatDate(meter.from)} your meter recorded about <strong>{meter.perDay.toFixed(1)} kWh/day</strong> ({formatPeso(meter.perDay * 30 * rate)} for 30 days). Your appliance list adds up to <strong>{listDaily.toFixed(1)} kWh/day</strong>. {verdict}
+    </span></p>
+  )
+}
+
+export function AppliancesPage({ appliances, readings = [], onAdd, onUpdate, onDelete, rate, onToast }) {
   const [filter, setFilter] = useState('All appliances')
   const [search, setSearch] = useState('')
   const [modal, setModal] = useState(undefined)
   const [deleteTarget, setDeleteTarget] = useState(null)
   const shown = useMemo(() => appliances.filter(item => (filter === 'All appliances' || item.category === filter) && `${item.name} ${item.category}`.toLowerCase().includes(search.toLowerCase())), [appliances, filter, search])
-  const totalDaily = shown.reduce((sum, appliance) => sum + (appliance.watts * appliance.hours) / 1000, 0)
+const totalMonth = shown.reduce((sum, appliance) => sum + applianceMonthKwh(appliance), 0)
+const totalDaily = shown.reduce((sum, appliance) => sum + applianceAverageDailyKwh(appliance), 0)
+const listDaily = appliances.reduce((sum, appliance) => sum + applianceAverageDailyKwh(appliance), 0)
+  const meter = meterDailyUse(readings, new Date(Date.now() - 30 * 86400000))
 
   async function save(item) {
     const editing = Boolean(modal?.id)
@@ -109,8 +153,9 @@ export function AppliancesPage({ appliances, onAdd, onUpdate, onDelete, rate, on
   return (
     <>
       <PageTitle eyebrow="YOUR HOUSEHOLD" title="My appliances" description="Keep a household inventory and estimate energy use from each rating label." action={<button className="button button-primary" onClick={() => setModal(null)}><Plus size={17} /> Add appliance</button>} />
-      <div className="demo-banner"><Zap size={16} /><span><strong>Rated-power estimates.</strong> Watts × daily hours. Actual appliance consumption may differ.</span></div>
-      <div className="appliance-overview"><div><span>REGISTERED APPLIANCES</span><strong>{appliances.length}</strong></div><i /><div><span>ESTIMATED DAILY USE</span><strong>{totalDaily.toFixed(1)} <small>kWh/day</small></strong></div><i /><div><span>ESTIMATED MONTHLY COST</span><strong>{formatPeso(totalDaily * 30 * rate)} <small>/ month</small></strong></div></div>
+      <div className="demo-banner"><Zap size={16} /><span><strong>Label estimates.</strong> Rated watts × the hours you entered, as if each appliance ran at full power the whole time. Your real use comes from your meter readings.</span></div>
+      <div className="appliance-overview"><div><span>REGISTERED APPLIANCES</span><strong>{appliances.length}</strong></div><i /><div><span>LABEL ESTIMATE / DAY (AVERAGE)</span><strong>{totalDaily.toFixed(1)} <small>kWh/day</small></strong></div><i /><div><span>LABEL ESTIMATE / 30 DAYS</span><strong>{formatPeso(totalMonth * rate)} <small>/ month</small></strong></div></div>
+      {appliances.length > 0 && <MeterComparison meter={meter} listDaily={listDaily} rate={rate} />}
       <section className="panel appliances-panel">
         <div className="appliances-toolbar">
           <div className="filter-tabs" role="group" aria-label="Filter by appliance category">
@@ -122,7 +167,9 @@ export function AppliancesPage({ appliances, onAdd, onUpdate, onDelete, rate, on
           <div className="appliance-grid">
             {shown.map(appliance => {
               const Icon = icons[appliance.category] || Lightbulb
-              const daily = appliance.watts * appliance.hours / 1000
+              const daily = estimateDailyKwh(appliance)
+              const month = applianceMonthKwh(appliance)
+              const usedDays = usedDaysPer30(appliance.pattern)
               return (
                 <article className="appliance-card" key={appliance.id}>
                   <div className="appliance-card-top">
@@ -137,14 +184,14 @@ export function AppliancesPage({ appliances, onAdd, onUpdate, onDelete, rate, on
                   <h3>{appliance.name}</h3>
                   <p>{appliance.brand || (appliance.isSample ? 'Sample appliance' : 'No brand entered')}{appliance.model ? ` · ${appliance.model}` : ''}</p>
                   <div className="appliance-details"><span><Zap size={14} /> {appliance.watts} W rated</span><span>{appliance.hours} hrs/day · {appliance.pattern || 'Daily'}</span></div>
-                  <div className="appliance-estimate"><div><span>Estimated energy</span><strong>{daily.toFixed(2)} <small>kWh/day</small></strong></div><div className="mini-bars"><i /><i /><i /><i /><i /><i /><i /></div></div>
+                  <div className="appliance-estimate"><div><span>Estimated energy</span><strong>{daily.toFixed(2)} <small>kWh/day of use</small></strong><span className="appliance-cost">≈ {month.toFixed(1)} kWh · {formatPeso(month * rate)} / 30 days{usedDays !== 30 ? ` (${usedDays % 1 ? usedDays.toFixed(1) : usedDays} days of use)` : ''}</span></div><div className="mini-bars"><i /><i /><i /><i /><i /><i /><i /></div></div>
                 </article>
               )
             })}
           </div>
         ) : <EmptyState title={search || filter !== 'All appliances' ? 'No matching appliances' : 'No appliances yet'} description={search || filter !== 'All appliances' ? 'Try another search or category.' : 'Add an appliance to start estimating household energy use.'} action={<button className="button button-primary" onClick={() => setModal(null)}><Plus size={16} /> Add appliance</button>} />}
       </section>
-      {modal !== undefined && <ApplianceModal appliance={modal || undefined} onClose={() => setModal(undefined)} onSave={save} />}
+      {modal !== undefined && <ApplianceModal appliance={modal || undefined} onClose={() => setModal(undefined)} onSave={save} rate={rate} />}
       {deleteTarget && <ConfirmModal title={`Delete ${deleteTarget.name}?`} description="This appliance profile will be removed from the local database. This action cannot be undone." confirmLabel="Delete appliance" danger onConfirm={removeAppliance} onCancel={() => setDeleteTarget(null)} />}
     </>
   )

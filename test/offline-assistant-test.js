@@ -1,6 +1,6 @@
 import test from 'node:test'
 import assert from 'node:assert/strict'
-import { applianceTip, offlineAnswer } from '../src/utils/offline-assistant.js'
+import { applianceTip, offlineAnswer, offlineExplanation } from '../src/utils/offline-assistant.js'
 import { buildAssistantContext } from '../src/utils/assistant-context.js'
 
 const context = {
@@ -45,4 +45,43 @@ test('buildAssistantContext accepts readings in the server shape', () => {
   })
   assert.equal(ctx.latest.kwh, 140)
   assert.equal(ctx.usage.recentDailyKwh, 10)
+})
+
+test('offline explanation describes a household usage jump with cost and what to check', () => {
+  const alert = { type: 'usage-jump', observedKwhPerDay: 15, expectedKwhPerDay: 10, ratio: 1.5, days: 1, excessKwh: 5 }
+  const appliances = [{ name: 'Bedroom aircon', category: 'Air conditioner', watts: 900, hours: 6 }, { name: 'Fan', category: 'Electric fan', watts: 60, hours: 10 }]
+  const text = offlineExplanation(alert, { appliances, rate: 12.5 })
+  assert.match(text, /15 kWh a day over the last day, versus your usual 10 kWh a day \(1\.5× normal\)/)
+  assert.match(text, /5\.0 kWh extra, roughly ₱62\.50/)
+  assert.match(text, /Bedroom aircon and Fan/)
+})
+
+test('offline explanation covers device alerts without inventing a cause', () => {
+  const base = { deviceLabel: 'Family refrigerator', deviceCategory: 'Refrigerator', durationMin: 90, observedWatts: 300, expectedWatts: 150, peakWatts: 1200, excessKwh: 0.2 }
+  assert.match(offlineExplanation({ ...base, type: 'sustained-high' }, { rate: 12.5 }), /about 300 W for 1 h 30 min, versus a normal 150 W.*door seal/)
+  assert.match(offlineExplanation({ ...base, type: 'spike' }), /briefly reached 1200 W.*does not mean it is broken/)
+  assert.match(offlineExplanation({ ...base, type: 'sustained-low' }), /may have been switched off/)
+})
+
+test('offline assistant greets, thanks and asks again instead of repeating the summary', () => {
+  assert.match(offlineAnswer('hi', context), /^Hi! I answer from your saved meter readings/)
+  assert.match(offlineAnswer('salamat', context), /^You're welcome!/)
+  assert.match(offlineAnswer('huh', context), /^Sorry, I didn't get that\./)
+  assert.match(offlineAnswer('what', context), /^Sorry, I didn't get that\./)
+  assert.match(offlineAnswer('?', context), /^Sorry, I didn't get that\./)
+})
+
+test('offline assistant answers appliance topics and the rate', () => {
+  assert.match(offlineAnswer('is my aircon expensive?', context), /Bedroom aircon uses about 5\.40 kWh a day/)
+  assert.match(offlineAnswer('how about the ref', context), /Keep the door closed/)
+  assert.match(offlineAnswer('what is my rate', context), /Your rate is set to ₱12\.50 per kWh/)
+})
+
+test('offline assistant does not send the same answer twice in a row', () => {
+  const first = offlineAnswer('Why is my bill high?', context)
+  const again = offlineAnswer('Why is my bill high?', context, [{ role: 'user', content: 'Why is my bill high?' }, { role: 'assistant', content: first }])
+  assert.notEqual(again, first)
+  assert.match(again, /still the latest/)
+  const unclear = offlineAnswer('huh', context)
+  assert.equal(offlineAnswer('what', context, [{ role: 'assistant', content: unclear }]), unclear)
 })

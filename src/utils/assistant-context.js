@@ -1,14 +1,21 @@
 // What the assistant (and the "Why is my bill high?" card) knows about the household.
 // Built in one place so the chat bubble, the card and the plain-facts list always agree.
 import { alertImpact, kwhText, pesoText, totalImpact } from './alert-impact.js'
-import { estimateDailyKwh, formatDate, usageFromReadings } from './energy-utils.js'
+import { applianceMonthKwh, formatDate, usageFromReadings, usedDaysPer30 } from './energy-utils.js'
 
 const round1 = n => Math.round(n * 10) / 10
 const round2 = n => Math.round(n * 100) / 100
 
 // Meter-based use: the latest stretch between readings versus the average of the stretches before it.
 export function usageSummary(readings) {
-  const points = usageFromReadings(readings)
+  const normalized = readings.map(reading => ({
+    ...reading,
+    kwh: reading.kwh ?? reading.readingKwh,
+    date: reading.date ?? reading.recordedAt,
+    reset: reading.reset ?? reading.isReset,
+  }))
+  const latestReset = normalized.reduce((index, reading, current) => reading.reset ? current : index, -1)
+  const points = usageFromReadings(normalized.slice(latestReset < 0 ? 0 : latestReset))
   if (!points.length) return null
   const latest = points[points.length - 1]
   const earlier = points.slice(0, -1)
@@ -18,9 +25,9 @@ export function usageSummary(readings) {
 
 // Sent to /api/assistant. Numbers only: the server writes the prompt, so the browser can never inject instructions.
 export function buildAssistantContext({ readings = [], appliances = [], alerts = [], rate, monthKwh } = {}) {
-  readings = readings.map(r => ({ ...r, kwh: r.kwh ?? r.readingKwh, date: r.date ?? r.recordedAt }))
+  readings = readings.map(r => ({ ...r, kwh: r.kwh ?? r.readingKwh, date: r.date ?? r.recordedAt, reset: r.reset ?? r.isReset }))
   const latest = readings[readings.length - 1]
-  const previous = readings[readings.length - 2]
+  const previous = latest?.reset ? undefined : readings[readings.length - 2]
   return {
     rate,
     monthKwh,
@@ -32,7 +39,9 @@ export function buildAssistantContext({ readings = [], appliances = [], alerts =
       category: a.category,
       watts: a.watts,
       hoursPerDay: a.hours,
-      monthlyKwh: Math.round(estimateDailyKwh(a) * 30 * 10) / 10,
+      pattern: a.pattern ?? 'Daily',
+      daysPerMonth: Math.round(usedDaysPer30(a.pattern) * 10) / 10,
+      monthlyKwh: Math.round(applianceMonthKwh(a) * 10) / 10,
     })),
     alerts: alerts.slice(0, 5).map(a => {
       const impact = alertImpact(a, appliances, rate)
@@ -62,7 +71,7 @@ export function billFacts({ readings = [], appliances = [], alerts = [], rate } 
     }
   }
 
-  const monthly = appliances.map(a => ({ a, kwh: estimateDailyKwh(a) * 30 }))
+  const monthly = appliances.map(a => ({ a, kwh: applianceMonthKwh(a) }))
   const total = monthly.reduce((s, i) => s + i.kwh, 0)
   const biggest = monthly.reduce((best, i) => (!best || i.kwh > best.kwh ? i : best), null)
   if (biggest && total > 0) {

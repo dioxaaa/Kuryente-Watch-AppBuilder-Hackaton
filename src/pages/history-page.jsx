@@ -3,7 +3,7 @@ import { CalendarDays, Download, TrendingUp } from 'lucide-react'
 import { PageTitle } from '../components/page-title'
 import { EmptyState } from '../components/empty-state'
 import { UsageChart } from '../components/usage-chart'
-import { formatDate } from '../utils/energy-utils'
+import { formatDate, usagePerDay } from '../utils/energy-utils'
 
 function exportReadings(readings, onToast) {
   if (!readings.length) {
@@ -32,12 +32,11 @@ export function HistoryPage({ readings, onToast }) {
     () => readings.filter(reading => new Date(reading.recordedAt).getTime() >= cutoff),
     [readings, cutoff],
   )
-  const usageData = visibleReadings.filter(reading => reading.usageKwh !== null).map(reading => ({
-    day: new Intl.DateTimeFormat('en-PH', { month: 'short', day: 'numeric' }).format(new Date(reading.recordedAt)),
-    usage: Number(reading.usageKwh.toFixed(2)),
-  }))
-  const total = usageData.reduce((sum, item) => sum + item.usage, 0)
-  const average = usageData.length ? total / usageData.length : null
+  // Computed from every reading so the first stretch in the range still knows where it started.
+  const usageData = useMemo(() => usagePerDay(readings).filter(point => point.to.getTime() >= cutoff), [readings, cutoff])
+  const total = usageData.reduce((sum, item) => sum + item.kwh, 0)
+  const spanDays = usageData.reduce((sum, item) => sum + item.days, 0)
+  const average = spanDays > 0 ? total / spanDays : null
 
   return (
     <>
@@ -50,18 +49,18 @@ export function HistoryPage({ readings, onToast }) {
       <div className="demo-banner"><CalendarDays size={16} /><span><strong>From your local database.</strong> Usage is calculated from cumulative readings, not simulated sensor data.</span></div>
       <section className="panel history-chart-panel">
         <div className="panel-heading history-heading">
-          <div><h2>Usage between readings</h2><p>Calculated change in household meter value · kWh</p></div>
+          <div><h2>Daily use between readings</h2><p>Average kWh per day, calculated from the meter values and their dates</p></div>
           <div className="range-selector" role="group" aria-label="Filter history by date range">
             {['7 days', '30 days', '90 days'].map(item => <button key={item} className={range === item ? 'range-active' : ''} onClick={() => setRange(item)} aria-pressed={range === item}>{item}</button>)}
           </div>
         </div>
         <div className="history-summary">
           <div><span>Usage in selected range</span><strong>{usageData.length ? total.toFixed(1) : '—'} <small>kWh</small></strong></div>
-          <div><span>Average per interval</span><strong>{average !== null ? average.toFixed(1) : '—'} <small>kWh</small></strong></div>
+          <div><span>Average per day</span><strong>{average !== null ? average.toFixed(1) : '—'} <small>kWh/day</small></strong></div>
           <div><span>Readings in range</span><strong>{visibleReadings.length}</strong></div>
         </div>
         {usageData.length ? <UsageChart data={usageData} /> : <EmptyState title="Not enough readings for a chart" description="Record at least two meter readings in the selected period to calculate usage." />}
-        <p className="chart-disclaimer"><span className="legend-circle" /> Each point represents the measured difference between cumulative meter readings.</p>
+        <p className="chart-disclaimer"><span className="legend-circle" /> Each bar is the measured difference between two readings divided by the days between them. Hover a bar for its dates and total.</p>
       </section>
       <section className="panel reading-history-panel">
         <div className="panel-heading"><div><h2>Meter reading history</h2><p>Stored locally · cumulative kWh and interval change</p></div><span className="badge badge-neutral">{visibleReadings.length} ENTRIES</span></div>
