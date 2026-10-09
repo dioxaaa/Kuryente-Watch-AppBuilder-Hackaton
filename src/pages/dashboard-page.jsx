@@ -5,7 +5,6 @@ import { UsageChart } from '../components/usage-chart'
 import { EmptyState } from '../components/empty-state'
 import { AssistantWidget } from '../components/assistant-widget'
 import { applianceMonthKwh, daysInMonth, estimateDailyKwh, formatDate, formatPeso, meterDailyUse, usagePerDay } from '../utils/energy-utils'
-import { usageSummary } from '../utils/assistant-context'
 
 export function DashboardPage({ profile, readings, alerts, appliances, rate, onNavigate }) {
   const current = readings.at(-1)
@@ -28,17 +27,6 @@ export function DashboardPage({ profile, readings, alerts, appliances, rate, onN
   const rankedAppliances = appliances.map(item => ({ ...item, monthKwh: applianceMonthKwh(item) })).sort((a, b) => b.monthKwh - a.monthKwh)
   const topAppliances = rankedAppliances.slice(0, 4)
   const estimateTotalKwh = rankedAppliances.reduce((sum, item) => sum + item.monthKwh, 0)
-  const trend = usageSummary(readings.map(reading => ({
-    ...reading,
-    kwh: reading.kwh ?? reading.readingKwh,
-    date: reading.date ?? reading.recordedAt,
-    reset: reading.reset ?? reading.isReset,
-  })))
-  const trendInsight = !trend
-    ? 'Add two usable meter intervals to compare your daily household use.'
-    : trend.earlierDailyKwh === null
-      ? `Your latest valid interval averaged ${trend.recentDailyKwh.toFixed(1)} kWh/day. One interval is not enough to establish a pattern.`
-      : `Your latest interval averaged ${trend.recentDailyKwh.toFixed(1)} kWh/day, versus ${trend.earlierDailyKwh.toFixed(1)} kWh/day across earlier intervals.`
 
   return (
     <>
@@ -78,12 +66,6 @@ export function DashboardPage({ profile, readings, alerts, appliances, rate, onN
             <div className="activity-item" key={item.id}><span className="activity-icon"><Plug size={16} /></span><span><strong>{item.name}</strong><small>{item.watts} W · {item.hours} hours/day · {item.pattern || 'Daily'} · estimate only</small></span><b>{formatPeso(item.monthKwh * rate)}</b></div>
           )) : <EmptyState title="No appliances added" description="Add appliances to estimate usage from their rating labels." action={<button className="button button-secondary" onClick={() => onNavigate('appliances')}>Add appliance</button>} />}
           {topAppliances.length > 0 && <p className="estimate-total">{rankedAppliances.length > topAppliances.length ? `All ${rankedAppliances.length} appliances` : 'Total'}: about <strong>{estimateTotalKwh.toFixed(0)} kWh</strong> · <strong>{formatPeso(estimateTotalKwh * rate)}</strong> per 30 days. Estimated from labels; your meter bill above is the measured figure.</p>}
-        </section>
-        <section className="panel assistant-preview">
-          <div className="panel-heading"><div><h2>Saved-data insight</h2><p>Meter interval trend</p></div><button className="text-button" onClick={() => onNavigate('assistant')}>Ask assistant <ArrowRight size={15} /></button></div>
-          <p>{trendInsight}</p>
-          <p className="muted-copy">This reflects household-wide readings, not the cause of a change. Sparse intervals make the comparison approximate.</p>
-          <button className="button button-secondary" onClick={() => onNavigate('assistant')}>Open Energy Assistant</button>
         </section>
       </div>
       <AssistantWidget readings={readings} appliances={appliances} alerts={alerts} rate={rate} household={profile.householdName} />

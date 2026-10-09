@@ -111,6 +111,7 @@ h1, h2, h3, p { margin-top: 0; }
 .trend-up { color: #d08c46; }
 .trend-down { color: #278b60; }
 .dashboard-grid { display: grid; grid-template-columns: minmax(0, 1.45fr) minmax(300px, .9fr); gap: 15px; margin-bottom: 15px; }
+.dashboard-lower-grid { grid-template-columns: minmax(0, 1fr); }
 .panel { padding: 17px 18px; }
 .panel-heading { display: flex; align-items: flex-start; justify-content: space-between; gap: 12px; }
 .panel-heading h2, .insight-panel h2 { margin: 0; color: #243129; font: 700 15px var(--font); letter-spacing: -.15px; }
