@@ -3,7 +3,7 @@ import { Bell, Menu, Search } from 'lucide-react'
 import { ThemeToggle } from './theme-toggle.jsx'
 import { initialsOf } from '../utils/energy-utils'
 
-export function AppHeader({ title, unreadCount, onMenu, onAlerts, onProfile, onSearch, backendConnected, userName, networkOnline }) {
+export function AppHeader({ title, unreadCount, onMenu, onAlerts, onProfile, onSearch, backendConnected, localMode, userName, networkOnline }) {
   const [online, setOnline] = useState(networkOnline)
 
   useEffect(() => {
@@ -23,7 +23,7 @@ export function AppHeader({ title, unreadCount, onMenu, onAlerts, onProfile, onS
         <div className="breadcrumbs"><span>Workspace</span><span className="breadcrumb-slash">/</span><strong>{title}</strong></div>
       </div>
       <div className="topbar-actions">
-        <span className={`demo-mode ${!backendConnected ? 'connection-offline' : ''}`} title={backendConnected ? (online ? 'SQLite local server connected' : 'Internet disconnected; local SQLite server remains connected') : 'Local API unavailable'}><span /> {backendConnected ? (online ? 'SQLite ready' : 'Offline · local ready') : 'Local API unavailable'}</span>
+        {localMode ? <span className="demo-mode" title="No KuryenteWatch server found. Your records are saved in this browser and work offline."><span /> Saved on this device</span> : <span className={`demo-mode ${!backendConnected ? 'connection-offline' : ''}`} title={backendConnected ? (online ? 'SQLite local server connected' : 'Internet disconnected; local SQLite server remains connected') : 'Local API unavailable'}><span /> {backendConnected ? (online ? 'SQLite ready' : 'Offline · local ready') : 'Local API unavailable'}</span>}
         <button className="icon-button search-button" aria-label="Search appliances" title="Search appliances" onClick={onSearch}><Search size={19} /></button>
         <span className={`demo-mode ${online ? '' : 'connection-offline'}`} title="Internet connection status"><span /> {online ? 'Online' : 'Offline'}</span>
         <ThemeToggle />
