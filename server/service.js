@@ -12,7 +12,7 @@ export function trainDevice(db, device, range = {}) {
 // Score stored readings against the saved baseline and persist the resulting alerts.
 export function scanDevice(db, device, range = {}, options = {}) {
   const baseline = getBaseline(db, device)
-  if (!baseline) throw new Error(`No baseline for "${device}". Train it first.`)
+  if (!baseline) throw Object.assign(new Error(`No baseline for "${device}". Train it first.`), { status: 400 })
   const { events } = detect(getReadings(db, device, range), baseline, options)
   return { events, newAlerts: saveAlerts(db, device, events) }
 }

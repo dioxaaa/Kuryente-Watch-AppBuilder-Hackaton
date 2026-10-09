@@ -9,7 +9,9 @@
     "preview": "vite preview",
     "test": "node --test test/detector.test.js test/server.test.js test/appliances-test.js test/meter-test.js test/alert-explainer-test.js test/scan-test.js test/meter-ocr-test.js test/chart-test.js test/alert-impact-test.js",
     "server": "node server/index.js",
-    "seed": "node server/seed.js"
+    "seed": "node server/seed.js",
+    "dev:all": "concurrently -k -n API,WEB -c green,blue \"npm:server\" \"vite --host 127.0.0.1\"",
+    "start": "node server/index.js"
   },
   "dependencies": {
     "better-sqlite3": "^13.0.3",
@@ -24,6 +26,7 @@
   },
   "devDependencies": {
     "@vitejs/plugin-react": "^4.3.4",
+    "concurrently": "^9.2.1",
     "vite": "^6.0.5",
     "vite-plugin-pwa": "^0.21.1"
   }

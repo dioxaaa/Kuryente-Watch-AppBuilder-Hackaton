@@ -4,6 +4,7 @@ import {
   ChevronLeft,
   ChevronRight,
   House,
+  MessageCircle,
   Plug,
   Settings,
   ShieldCheck,
@@ -16,7 +17,12 @@ export const navItems = [
   { id: 'appliances', label: 'My appliances', icon: Plug },
   { id: 'history', label: 'Energy history', icon: ChartNoAxesCombined },
   { id: 'alerts', label: 'Alerts', icon: Bell },
+  { id: 'assistant', label: 'Energy Assistant', icon: MessageCircle },
   { id: 'settings', label: 'Settings', icon: Settings },
+  { id: 'admin', label: 'About this installation', icon: ShieldCheck },
+]
+
+export function AppSidebar({ activePage, onNavigate, mobileOpen, onClose, alertCount, userName, householdName }) {
   { id: 'admin', label: 'About this prototype', icon: ShieldCheck },
 ]
 
@@ -34,6 +40,7 @@ export function AppSidebar({ household, activePage, onNavigate, mobileOpen, onCl
         </div>
         <div className="household-switch">
           <span className="household-icon"><House size={16} /></span>
+          <span><small>HOUSEHOLD</small>          <strong>{householdName}</strong></span>
           <span><small>HOUSEHOLD</small><strong>{household || 'My household'}</strong></span>
           <ChevronRight size={15} className="muted-icon" />
         </div>
@@ -51,6 +58,11 @@ export function AppSidebar({ household, activePage, onNavigate, mobileOpen, onCl
           <div className="privacy-card">
             <span className="privacy-icon"><ShieldCheck size={17} /></span>
             <strong>Your data stays yours</strong>
+            <p>Your profile and energy records are stored on this computer.</p>
+          </div>
+          <button className="profile-mini" onClick={() => onNavigate('settings')}>
+            <span className="avatar avatar-small">{userName.split(/\s+/).map(part => part[0]).slice(0, 2).join('').toUpperCase()}</span>
+            <span><strong>{userName}</strong><small>Local profile</small></span>
             <p>Everything is saved in a database on this computer, not online.</p>
           </div>
           <button className="profile-mini" onClick={() => onNavigate('settings')}>

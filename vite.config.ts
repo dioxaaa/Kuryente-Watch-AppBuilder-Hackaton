@@ -22,7 +22,7 @@ export default defineConfig({
       manifest: {
         name: 'KuryenteWatch — The Local Energy Detective',
         short_name: 'KuryenteWatch',
-        description: 'A frontend UI prototype for a household energy companion.',
+        description: 'A local-first household energy companion for meter readings and usage estimates.',
         theme_color: '#123a2d',
         background_color: '#f5f7f4',
         display: 'standalone',
